@@ -1,36 +1,107 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalization } from '@/context/LocalizationContext';
+import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useNavigation } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  Image,
+  LayoutChangeEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Use 10.0.2.2 if testing on Android Emulator, or your IP (192.168.x.x) if testing on physical phone
+const PYTHON_API_URL = 'http://192.168.137.1:5000/scan';
+
+export interface BoundingBoxItem {
+  id?: string;
+  text: string;
+  sentence?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// Sample fallback bounding boxes simulating Tesseract --psm 11 sparse text detection
+const DEMO_BOUNDING_BOXES: BoundingBoxItem[] = [
+  { text: 'SUPPLEMENTARY/UPDATING', sentence: 'SUPPLEMENTARY/UPDATING OF DATA', x: 230, y: 135, width: 140, height: 12 },
+  { text: 'PERSONAL', sentence: '1. PERSONAL INFORMATION', x: 130, y: 158, width: 70, height: 10 },
+  { text: 'INFORMATION', sentence: '1. PERSONAL INFORMATION', x: 205, y: 158, width: 90, height: 10 },
+  { text: 'PWD', sentence: '2. PWD TYPE OF DISABILITY', x: 420, y: 158, width: 35, height: 10 },
+  { text: 'LAST NAME:', sentence: 'LAST NAME: DE LA CRUZ', x: 108, y: 172, width: 55, height: 8 },
+  { text: 'FIRST NAME:', sentence: 'FIRST NAME: JUAN', x: 108, y: 186, width: 55, height: 8 },
+  { text: 'MIDDLE NAME:', sentence: 'MIDDLE NAME: SANTOS', x: 108, y: 200, width: 62, height: 8 },
+  { text: 'BARANGAY:', sentence: 'BARANGAY: SAN JOSE', x: 108, y: 228, width: 50, height: 8 },
+  { text: 'CITY/MUNICIPALITY:', sentence: 'CITY/MUNICIPALITY: QUEZON CITY', x: 108, y: 242, width: 85, height: 8 },
+  { text: 'INDIGENOUS', sentence: '3. INDIGENOUS PEOPLE', x: 130, y: 275, width: 75, height: 10 },
+  { text: 'PEOPLE', sentence: '3. INDIGENOUS PEOPLE', x: 210, y: 275, width: 50, height: 10 },
+  { text: 'Deaf/Hard of Hearing', sentence: 'Deaf/Hard of Hearing Disability', x: 300, y: 186, width: 95, height: 8 },
+  { text: 'Psychosocial', sentence: 'Psychosocial Disability', x: 430, y: 186, width: 65, height: 8 },
+  { text: 'Visual', sentence: 'Visual Impairment', x: 430, y: 214, width: 35, height: 8 },
+  { text: 'Physical', sentence: 'Physical Disability', x: 300, y: 242, width: 45, height: 8 },
+];
 
 export default function HomeScreen() {
   const { t } = useLocalization();
-  const [image, setImage] = useState<string | null>(null);
+  const navigation = useNavigation();
 
-  const takePhoto = async () => {
+  const [image, setImage] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
+  const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
+
+  // Card Layout Dimensions for scaling coordinates
+  const [cardLayout, setCardLayout] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: image ? { display: 'none' } : undefined,
+    });
+  }, [image, navigation]);
+
+  const processImageOCR = async (uri: string, originalWidth: number, originalHeight: number) => {
+    setImage({ uri, width: originalWidth, height: originalHeight });
+    setIsLoading(true);
+    setSelectedWord(null);
+
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Sorry, we need camera permissions to make this work!');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 1,
+      // Use expo-file-system for a reliable native file upload
+      const response = await FileSystem.uploadAsync(PYTHON_API_URL, uri, {
+        fieldName: 'file',
+        httpMethod: 'POST',
+        uploadType: 1, // 1 corresponds to MULTIPART in Expo FileSystem
       });
 
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
+      if (response.status === 200) {
+        const data: BoundingBoxItem[] = JSON.parse(response.body);
+        console.log(`✅ Received ${data.length} bounding boxes from server!`);
+        console.log(data.slice(0, 2)); // Print just the first two to keep console clean
+        setBoundingBoxes(data);
+      } else {
+        console.log(`❌ Server Error! Status: ${response.status}`);
+        setBoundingBoxes(DEMO_BOUNDING_BOXES);
       }
-    } catch (error) {
-      console.log('Error taking photo:', error);
-      alert('Failed to open camera');
+    } catch (e) {
+      console.log('Error hitting Python API:', e);
+      console.log('Python API offline, loading demo Google Lens bounding boxes');
+      setBoundingBoxes(DEMO_BOUNDING_BOXES);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const takePhoto = async () => {
+    router.push('/camera' as any);
   };
 
   const pickImage = async () => {
@@ -48,7 +119,8 @@ export default function HomeScreen() {
       });
 
       if (!result.canceled) {
-        setImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        processImageOCR(asset.uri, asset.width || 600, asset.height || 800);
       }
     } catch (error) {
       console.log('Error picking image:', error);
@@ -56,7 +128,20 @@ export default function HomeScreen() {
     }
   };
 
-  if (image) {
+  const handleCardLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setCardLayout({ width, height });
+  };
+
+  const handleReset = () => {
+    setImage(null);
+    setBoundingBoxes([]);
+    setSelectedWord(null);
+    setIsLoading(false);
+  };
+
+  // 1. Loading Screen State
+  if (image && isLoading) {
     return (
       <SafeAreaView style={styles.loadingScreenContainer}>
         <View style={styles.loadingCenterBox}>
@@ -68,25 +153,104 @@ export default function HomeScreen() {
           />
           <Text style={styles.loadingTitle}>Please Wait</Text>
           <Text style={styles.loadingSubtitle}>
-            Lorem ipsum dolor sit amet consectetur. Consectetur eu ac morbi id tellus tincidunt et. Arcu lobortis ullamcorper est gravida at iaculis fames imperdiet. Velit sit non tempor risus amet enim amet morbi.
+            Scanning document and detecting text with OCR...
           </Text>
-          
-          <TouchableOpacity onPress={() => setImage(null)} style={{marginTop: 40}}>
-            <Text style={{color: '#2182DE', fontWeight: 'bold'}}>Cancel / Go Back (Dev only)</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
+  // 2. Google Lens Interactive Document Preview State
+  if (image && !isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.previewHeaderContainer}>
+          <Text style={styles.title}>{t('app_title')}</Text>
+          <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
+            <Ionicons name="close-circle-outline" size={28} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.previewCardContainer}>
+          <View style={styles.darkCard} onLayout={handleCardLayout}>
+            <Image source={{ uri: image.uri }} style={styles.documentImage} resizeMode="contain" />
+
+            {/* Google Lens Interactive Bounding Box Overlays */}
+            {cardLayout.width > 0 &&
+              cardLayout.height > 0 &&
+              (() => {
+                const containerW = cardLayout.width - 40;
+                const containerH = cardLayout.height - 40;
+                const imgAspect = image.width / image.height;
+                const containerAspect = containerW / containerH;
+
+                let displayedW = containerW;
+                let displayedH = containerH;
+                let offsetX = 20;
+                let offsetY = 20;
+
+                if (containerAspect > imgAspect) {
+                  displayedW = containerH * imgAspect;
+                  offsetX = 20 + (containerW - displayedW) / 2;
+                } else {
+                  displayedH = containerW / imgAspect;
+                  offsetY = 20 + (containerH - displayedH) / 2;
+                }
+
+                const scale = displayedW / image.width;
+
+                return boundingBoxes.map((item, index) => {
+                  const boxStyle = {
+                    left: offsetX + item.x * scale,
+                    top: offsetY + item.y * scale,
+                    width: item.width * scale,
+                    height: item.height * scale,
+                  };
+
+                  const isSelected = selectedWord === item;
+
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.boundingBox,
+                        boxStyle,
+                        isSelected && styles.selectedBoundingBox,
+                      ]}
+                      onPress={() => setSelectedWord(item)}
+                    />
+                  );
+                });
+              })()}
+          </View>
+        </View>
+
+        {/* Selected Word Callout Card */}
+        {selectedWord && (
+          <View style={styles.wordDetailCard}>
+            <View style={styles.wordHeaderRow}>
+              <Text style={styles.wordText}>{selectedWord.text}</Text>
+              <TouchableOpacity onPress={() => setSelectedWord(null)}>
+                <Ionicons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+            {selectedWord.sentence && (
+              <Text style={styles.contextText}>"{selectedWord.sentence}"</Text>
+            )}
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  // 3. Default Home State (Take / Pick photo buttons)
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={styles.title}>{t('app_title')}</Text>
-          <Text style={styles.subtitle}>
-            {t('subtitle')}
-          </Text>
+          <Text style={styles.subtitle}>{t('subtitle')}</Text>
         </View>
 
         <View style={styles.buttonContainer}>
@@ -176,5 +340,78 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     lineHeight: 18,
-  }
+  },
+  previewHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  resetButton: {
+    padding: 4,
+  },
+  previewCardContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  darkCard: {
+    flex: 1,
+    backgroundColor: '#2C2D30',
+    borderRadius: 24,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  documentImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  boundingBox: {
+    position: 'absolute',
+    backgroundColor: 'rgba(33, 130, 222, 0.3)',
+    borderWidth: 1,
+    borderColor: '#2182DE',
+    borderRadius: 4,
+  },
+  selectedBoundingBox: {
+    backgroundColor: 'rgba(255, 204, 0, 0.5)',
+    borderColor: '#FFCC00',
+    borderWidth: 2,
+  },
+  wordDetailCard: {
+    position: 'absolute',
+    bottom: 30,
+    left: 24,
+    right: 24,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+    zIndex: 20,
+  },
+  wordHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  wordText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  contextText: {
+    fontSize: 14,
+    color: '#555',
+    fontStyle: 'italic',
+  },
 });
