@@ -31,6 +31,7 @@ jobs:
         env:
           # This tells EAS to compile locally on GitHub's computer instead of waiting in Expo's queue
           EXPO_LOCAL: 1
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Upload APK to GitHub
         uses: actions/upload-artifact@v4
