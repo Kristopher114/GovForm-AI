@@ -1,0 +1,39 @@
+name: Build Android APK
+on:
+  workflow_dispatch: # This allows you to manually click a button on GitHub to start the build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # GitHub provides a free Ubuntu computer for this job
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Java (Required for Android)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install Project Dependencies
+        run: npm install
+
+      - name: Install Expo Build Tool
+        run: npm install -g eas-cli
+
+      - name: Build APK (Bypassing Expo Cloud Queue)
+        run: eas build -p android --profile preview --local --non-interactive
+        env:
+          # This tells EAS to compile locally on GitHub's computer instead of waiting in Expo's queue
+          EXPO_LOCAL: 1
+
+      - name: Upload APK to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-app-apk
+          path: '**/*.apk'
