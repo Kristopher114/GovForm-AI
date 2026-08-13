@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "GovForm AI",
+    "name": "GovForm AI (Live)",
     "slug": "Capstone_AI_APP",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.Capstone_AI_APP",
+      "package": "com.anonymous.govform_ai_live",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]
