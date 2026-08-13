@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // -----------------------------------------------------------------------------
 // CONFIGURATION: Set your local Python server IP here
 // -----------------------------------------------------------------------------
-const PYTHON_API_URL = 'http://192.168.1.41:5000/scan';
+const PYTHON_API_URL = 'https://govform-ai-7uef.onrender.com/scan';
 
 export interface BoundingBoxItem {
   id?: string;

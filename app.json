@@ -7,9 +7,6 @@
     "icon": "./assets/images/govform.png",
     "scheme": "capstoneaiapp",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "usesCleartextTraffic": true,
       "adaptiveIcon": {

@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Use 10.0.2.2 if testing on Android Emulator, or your IP (192.168.x.x) if testing on physical phone
-const PYTHON_API_URL = 'http://192.168.137.1:5000/scan';
+const PYTHON_API_URL = 'https://govform-ai-7uef.onrender.com/scan';
 
 export interface BoundingBoxItem {
   id?: string;
