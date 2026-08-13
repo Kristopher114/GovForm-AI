@@ -175,3 +175,23 @@ Capstone_AI_APP/
    ```
 
    *Note: Using `--local` skips the Expo free-tier queue and compiles the APK instantly on your PC.*
+
+---
+
+## 📅 Changelog & Deployment Updates (August 13, 2026)
+
+Today we successfully transitioned the application from a local testing environment to a production-ready cloud deployment!
+
+### 1. Cloud Backend Deployment (Render)
+- Created a `Dockerfile` and `requirements.txt` to install system-level dependencies (`tesseract-ocr`, `libgl1`) and Python packages.
+- Deployed the `server.py` Flask backend to a live, public cloud server on **Render.com**.
+- The API is now globally accessible at: `https://govform-ai-7uef.onrender.com`
+
+### 2. Frontend React Native Updates
+- Updated `PYTHON_API_URL` in `src/app/(tabs)/index.tsx` and `src/app/camera.tsx` to point to the new live Render backend instead of the local `127.0.0.1` address.
+
+### 3. Production APK Separation
+- **`app.json` Configuration**: Changed the app's visual name to **"GovForm AI (Live)"**.
+- **Package Name Isolation**: Changed the Android package name to `com.anonymous.govform_ai_live`. 
+  - *Why?* This tells Android that this is a completely brand-new application. This allows you to safely install the final Live APK on your phone side-by-side with your old development/debug version without them overwriting each other!
+- Safely removed the unused `ios` configuration block to keep the project clean.
