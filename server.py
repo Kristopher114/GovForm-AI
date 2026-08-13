@@ -8,15 +8,19 @@ from pytesseract import Output
 import cv2
 import numpy as np
 
-# Point to your local Tesseract installation
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Point to Tesseract based on the Operating System
+if os.name == 'nt':  # Windows (Local Testing)
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+else:  # Linux (Hugging Face Cloud Server)
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 app = Flask(__name__)
 # Enable CORS so your React Native app can communicate with this API
 CORS(app)
 
 # Ensure there is an uploads folder to temporarily store photos sent from the phone
-UPLOAD_FOLDER = 'uploads'
+# On Hugging Face, it's safer to save temp files to /tmp/uploads
+UPLOAD_FOLDER = '/tmp/uploads' if os.name != 'nt' else 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def is_blurry(image, threshold=100.0):
@@ -117,5 +121,7 @@ def health_check():
     return jsonify({"status": "Backend is running!"})
 
 if __name__ == '__main__':
-    # Listen on all local IP addresses at port 5000 (0.0.0.0 exposes it to your local network)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Hugging Face Spaces strictly requires the app to listen on port 7860.
+    # When testing on your laptop, it will also use port 7860 now!
+    port = int(os.environ.get("PORT", 7860))
+    app.run(host='0.0.0.0', port=port, debug=True)
