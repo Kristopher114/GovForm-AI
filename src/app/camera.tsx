@@ -40,6 +40,7 @@ export default function CameraOCRScreen() {
   } | null>(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Processing document with OCR...');
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
   const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
 
@@ -87,17 +88,37 @@ export default function CameraOCRScreen() {
         type: 'image/jpeg',
       } as any);
 
-      // POST Request to local Python server
-      const response = await fetch(PYTHON_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        body: formData,
-      });
+      setLoadingMessage('Uploading image...');
 
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
+      // POST Request to local Python server with Automatic Retry for Render Cold Starts
+      let response;
+      let retries = 3;
+      
+      for (let i = 0; i < retries; i++) {
+        try {
+          response = await fetch(PYTHON_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            body: formData,
+          });
+          
+          if (response.ok) break; // Success! Exit the retry loop.
+          
+        } catch (error) {
+          if (i === retries - 1) throw error; // If last try fails, throw error
+          
+          console.log(`Connection failed. Retrying... (${i + 1}/${retries})`);
+          setLoadingMessage('Waking up cloud server (this can take 60s)...');
+          
+          // Wait 15 seconds before trying again to let Render boot up
+          await new Promise(resolve => setTimeout(resolve, 15000));
+        }
+      }
+
+      if (!response || !response.ok) {
+        throw new Error(`Server returned status ${response?.status}`);
       }
 
       const data: BoundingBoxItem[] = await response.json();
@@ -119,6 +140,7 @@ export default function CameraOCRScreen() {
     setBoundingBoxes([]);
     setSelectedWord(null);
     setIsProcessing(false);
+    setLoadingMessage('Processing document with OCR...');
   };
 
   // Handle Box Tap
@@ -245,7 +267,7 @@ export default function CameraOCRScreen() {
           {isProcessing && (
             <View style={styles.processingOverlay}>
               <ActivityIndicator size="large" color="#ffffff" />
-              <Text style={styles.processingText}>Processing document with OCR...</Text>
+              <Text style={styles.processingText}>{loadingMessage}</Text>
             </View>
           )}
         </View>
