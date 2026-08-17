@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -80,14 +81,6 @@ export default function CameraOCRScreen() {
         height: photo.height,
       });
 
-      // Prepare FormData for local Python API
-      const formData = new FormData();
-      formData.append('file', {
-        uri: photo.uri,
-        name: 'capture.jpg',
-        type: 'image/jpeg',
-      } as any);
-
       setLoadingMessage('Uploading image...');
 
       // POST Request to local Python server with Automatic Retry for Render Cold Starts
@@ -96,15 +89,17 @@ export default function CameraOCRScreen() {
       
       for (let i = 0; i < retries; i++) {
         try {
-          response = await fetch(PYTHON_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-            body: formData,
+          // Use expo-file-system instead of fetch for reliable Native file uploads in production APKs
+          response = await FileSystem.uploadAsync(PYTHON_API_URL, photo.uri, {
+            fieldName: 'file',
+            httpMethod: 'POST',
+            uploadType: 1, // MULTIPART
           });
           
-          if (response.ok) break; // Success! Exit the retry loop.
+          if (response.status === 200) break; // Success! Exit the retry loop.
+          
+          // If the server returns a 502 Bad Gateway (which it does while waking up), we force an error to trigger the 15-second sleep!
+          throw new Error(`Server returned status ${response.status}`);
           
         } catch (error) {
           if (i === retries - 1) throw error; // If last try fails, throw error
@@ -117,11 +112,11 @@ export default function CameraOCRScreen() {
         }
       }
 
-      if (!response || !response.ok) {
+      if (!response || response.status !== 200) {
         throw new Error(`Server returned status ${response?.status}`);
       }
 
-      const data: BoundingBoxItem[] = await response.json();
+      const data: BoundingBoxItem[] = JSON.parse(response.body);
       setBoundingBoxes(data);
     } catch (error) {
       console.error('OCR Processing Error:', error);
