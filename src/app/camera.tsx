@@ -85,7 +85,7 @@ export default function CameraOCRScreen() {
 
       // POST Request to local Python server with Automatic Retry for Render Cold Starts
       let response;
-      let retries = 3;
+      let retries = 6;
       
       for (let i = 0; i < retries; i++) {
         try {
@@ -105,7 +105,7 @@ export default function CameraOCRScreen() {
           if (i === retries - 1) throw error; // If last try fails, throw error
           
           console.log(`Connection failed. Retrying... (${i + 1}/${retries})`);
-          setLoadingMessage('Waking up cloud server (this can take 60s)...');
+          setLoadingMessage('Waking up cloud server (this can take up to 2 minutes)...');
           
           // Wait 15 seconds before trying again to let Render boot up
           await new Promise(resolve => setTimeout(resolve, 15000));
