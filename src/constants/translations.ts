@@ -1,13 +1,14 @@
 export type LanguageKey = "English" | "Tagalog" | "Cebuano";
-export type TranslationKey = 
-  | "app_title" 
-  | "subtitle" 
-  | "btn_take_photo" 
-  | "btn_choose_photo" 
-  | "nav_home" 
-  | "nav_forms" 
+export type TranslationKey =
+  | "app_title"
+  | "subtitle"
+  | "btn_take_photo"
+  | "btn_choose_photo"
+  | "nav_home"
+  | "nav_forms"
   | "nav_settings"
-  | "choose_language";
+  | "choose_language"
+  | "sectionTitle";
 
 export const translations: Record<LanguageKey, Record<TranslationKey, string>> = {
   English: {
@@ -16,9 +17,10 @@ export const translations: Record<LanguageKey, Record<TranslationKey, string>> =
     btn_take_photo: "Take a Picture of the form",
     btn_choose_photo: "Choose Existing Photo",
     nav_home: "Home",
-    nav_forms: "Forms",
+    nav_forms: "Recents",
     nav_settings: "Settings",
-    choose_language: "Choose a\nLanguage"
+    choose_language: "Choose a\nLanguage",
+    sectionTitle: "Select a Language"
   },
   Tagalog: {
     app_title: "GovForm AI",
@@ -26,9 +28,10 @@ export const translations: Record<LanguageKey, Record<TranslationKey, string>> =
     btn_take_photo: "Kunan ng Picture ang Form",
     btn_choose_photo: "Pumili sa Gallery",
     nav_home: "Home",
-    nav_forms: "Mga Form",
+    nav_forms: "Mga Nakaraan",
     nav_settings: "Settings",
-    choose_language: "Pumili ng\nWika"
+    choose_language: "Pumili ng\nWika",
+    sectionTitle: "Pumili ng Wika"
   },
   Cebuano: {
     app_title: "GovForm AI",
@@ -36,8 +39,9 @@ export const translations: Record<LanguageKey, Record<TranslationKey, string>> =
     btn_take_photo: "Picturi ang Form",
     btn_choose_photo: "Pangitag Litrato gikan sa Gallery",
     nav_home: "Home",
-    nav_forms: "Mga Form",
+    nav_forms: "Mga Niagi",
     nav_settings: "Settings",
-    choose_language: "Pagpili og\nPinulongan"
+    choose_language: "Pagpili og\nPinulongan",
+    sectionTitle: "Pagpili og Pinulongan"
   }
 };

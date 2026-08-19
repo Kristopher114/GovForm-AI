@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { saveRecentForm } from '@/utils/storage';
 import {
   Image,
   LayoutChangeEvent,
@@ -13,6 +14,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -87,14 +89,22 @@ export default function HomeScreen() {
         console.log(`✅ Received ${data.length} bounding boxes from server!`);
         console.log(data.slice(0, 2)); // Print just the first two to keep console clean
         setBoundingBoxes(data);
+        
+        // Save to recents in the background
+        saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));
       } else {
         console.log(`❌ Server Error! Status: ${response.status}`);
-        setBoundingBoxes(DEMO_BOUNDING_BOXES);
+        Alert.alert(
+          'Connection Error',
+          `Could not connect to Python API at ${PYTHON_API_URL}. Ensure server is running.`
+        );
       }
     } catch (e) {
       console.log('Error hitting Python API:', e);
-      console.log('Python API offline, loading demo Google Lens bounding boxes');
-      setBoundingBoxes(DEMO_BOUNDING_BOXES);
+      Alert.alert(
+        'Connection Error',
+        `Could not connect to Python API at ${PYTHON_API_URL}. Ensure server is running.`
+      );
     } finally {
       setIsLoading(false);
     }

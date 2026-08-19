@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { saveRecentForm } from '@/utils/storage';
 import {
   ActivityIndicator,
   Alert,
@@ -75,10 +77,19 @@ export default function CameraOCRScreen() {
         return;
       }
 
+      setLoadingMessage('Optimizing image...');
+
+      // Resize the image to 1000px width (maintaining aspect ratio) to drastically reduce upload size
+      const manipResult = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [{ resize: { width: 1000 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
       setCapturedImage({
-        uri: photo.uri,
-        width: photo.width,
-        height: photo.height,
+        uri: manipResult.uri,
+        width: manipResult.width,
+        height: manipResult.height,
       });
 
       setLoadingMessage('Uploading image...');
@@ -86,27 +97,27 @@ export default function CameraOCRScreen() {
       // POST Request to local Python server with Automatic Retry for Render Cold Starts
       let response;
       let retries = 6;
-      
+
       for (let i = 0; i < retries; i++) {
         try {
           // Use expo-file-system instead of fetch for reliable Native file uploads in production APKs
-          response = await FileSystem.uploadAsync(PYTHON_API_URL, photo.uri, {
+          response = await FileSystem.uploadAsync(PYTHON_API_URL, manipResult.uri, {
             fieldName: 'file',
             httpMethod: 'POST',
             uploadType: 1, // MULTIPART
           });
-          
+
           if (response.status === 200) break; // Success! Exit the retry loop.
-          
+
           // If the server returns a 502 Bad Gateway (which it does while waking up), we force an error to trigger the 15-second sleep!
           throw new Error(`Server returned status ${response.status}`);
-          
+
         } catch (error) {
           if (i === retries - 1) throw error; // If last try fails, throw error
-          
+
           console.log(`Connection failed. Retrying... (${i + 1}/${retries})`);
           setLoadingMessage('Waking up cloud server (this can take up to 2 minutes)...');
-          
+
           // Wait 15 seconds before trying again to let Render boot up
           await new Promise(resolve => setTimeout(resolve, 15000));
         }
@@ -118,6 +129,9 @@ export default function CameraOCRScreen() {
 
       const data: BoundingBoxItem[] = JSON.parse(response.body);
       setBoundingBoxes(data);
+      
+      // Save to recents in the background
+      saveRecentForm(photo.uri, data).catch(err => console.log('Failed to save to recents', err));
     } catch (error) {
       console.error('OCR Processing Error:', error);
       Alert.alert(

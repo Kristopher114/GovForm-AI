@@ -1,8 +1,8 @@
+import { LanguageKey } from '@/constants/translations';
+import { useLocalization } from '@/context/LocalizationContext';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalization } from '@/context/LocalizationContext';
-import { LanguageKey } from '@/constants/translations';
 
 const LANGUAGES: LanguageKey[] = ["English", "Tagalog", "Cebuano"];
 
@@ -14,7 +14,7 @@ export default function SettingsScreen() {
       <Text style={styles.title}>{t('nav_settings')}</Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Language</Text>
+        <Text style={styles.sectionTitle}>{t('sectionTitle')}</Text>
         <View style={styles.card}>
           {LANGUAGES.map((lang, index) => {
             const isSelected = language === lang;
@@ -41,13 +41,13 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: '#F9F9F9',
     padding: 24,
   },
-  title: { 
-    fontSize: 32, 
+  title: {
+    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 32,
     color: '#000',

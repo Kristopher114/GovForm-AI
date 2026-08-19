@@ -183,15 +183,34 @@ Capstone_AI_APP/
 Today we successfully transitioned the application from a local testing environment to a production-ready cloud deployment!
 
 ### 1. Cloud Backend Deployment (Render)
+
 - Created a `Dockerfile` and `requirements.txt` to install system-level dependencies (`tesseract-ocr`, `libgl1`) and Python packages.
 - Deployed the `server.py` Flask backend to a live, public cloud server on **Render.com**.
 - The API is now globally accessible at: `https://govform-ai-7uef.onrender.com`
 
 ### 2. Frontend React Native Updates
+
 - Updated `PYTHON_API_URL` in `src/app/(tabs)/index.tsx` and `src/app/camera.tsx` to point to the new live Render backend instead of the local `127.0.0.1` address.
 
 ### 3. Production APK Separation
+
 - **`app.json` Configuration**: Changed the app's visual name to **"GovForm AI (Live)"**.
-- **Package Name Isolation**: Changed the Android package name to `com.anonymous.govform_ai_live`. 
+- **Package Name Isolation**: Changed the Android package name to `com.anonymous.govform_ai_live`.
   - *Why?* This tells Android that this is a completely brand-new application. This allows you to safely install the final Live APK on your phone side-by-side with your old development/debug version without them overwriting each other!
 - Safely removed the unused `ios` configuration block to keep the project clean.
+
+---
+
+## Update: August 20, 2026 (02:00 AM)
+
+### 1. Camera Permissions Fix
+- **`app.json` Plugin Fix**: Configured the `expo-camera` plugin properly and ensured `android.permission.CAMERA` was correctly defined so the live camera no longer crashes due to missing permissions.
+
+### 2. Camera Payload Optimization
+- **`expo-image-manipulator` integration**: Photos taken with the live camera were massive (multi-megabyte) which caused the free Render server to time out. Integrated `ImageManipulator` in `camera.tsx` to drastically compress and downscale images (1000px width, 70% JPEG quality) before uploading, ensuring fast and reliable OCR processing.
+- **Removed Fake Data**: Discovered and removed a hardcoded fallback in `index.tsx` that silently loaded fake demo bounding boxes when the server crashed, ensuring the app correctly alerts users on connection failures.
+
+### 3. Recent Scans & Persistent Storage
+- **`storage.ts` Utility**: Built a robust local storage system combining `expo-file-system/legacy` (to permanently save image thumbnails) and `@react-native-async-storage/async-storage` (to save harvested words and metadata).
+- **Forms Tab UI (`forms.tsx`)**: Completely redesigned the Forms tab to act as a history vault. It dynamically fetches and displays a list of recently scanned documents along with their thumbnail, date, and harvested word count.
+- **Harvested Words Detail (`form-details.tsx`)**: Created a new screen that lists the raw text extracted from previous scans. When users tap on a recent scan in the Forms tab, it instantly displays the words without re-querying the cloud server, saving data and processing power.
