@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as ImageManipulator from 'expo-image-manipulator';
+//import * as ImageManipulator from 'expo-image-manipulator';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { saveRecentForm } from '@/utils/storage';
 import {
   ActivityIndicator,
   Alert,
@@ -129,9 +128,6 @@ export default function CameraOCRScreen() {
 
       const data: BoundingBoxItem[] = JSON.parse(response.body);
       setBoundingBoxes(data);
-      
-      // Save to recents in the background
-      saveRecentForm(photo.uri, data).catch(err => console.log('Failed to save to recents', err));
     } catch (error) {
       console.error('OCR Processing Error:', error);
       Alert.alert(

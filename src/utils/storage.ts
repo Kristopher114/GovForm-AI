@@ -11,12 +11,17 @@ export interface BoundingBoxItem {
   height: number;
 }
 
+export interface HarvestedWord {
+  text: string;
+  sentence?: string;
+}
+
 export interface RecentForm {
   id: string;
   title: string;
   dateStr: string;
   thumbnailUri: string;
-  words: string[];
+  words: Array<HarvestedWord | string>;
 }
 
 const STORAGE_KEY = '@govform_recent_scans';
@@ -35,8 +40,11 @@ export const saveRecentForm = async (
       to: permanentUri,
     });
 
-    // 2. Harvest just the words
-    const words = boundingBoxes.map(box => box.text);
+    // 2. Harvest just the words and their context sentences
+    const words: HarvestedWord[] = boundingBoxes.map(box => ({
+      text: box.text,
+      sentence: box.sentence,
+    }));
 
     // 3. Create the record
     const newRecord: RecentForm = {

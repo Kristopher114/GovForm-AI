@@ -204,13 +204,35 @@ Today we successfully transitioned the application from a local testing environm
 ## Update: August 20, 2026 (02:00 AM)
 
 ### 1. Camera Permissions Fix
+
 - **`app.json` Plugin Fix**: Configured the `expo-camera` plugin properly and ensured `android.permission.CAMERA` was correctly defined so the live camera no longer crashes due to missing permissions.
 
 ### 2. Camera Payload Optimization
+
 - **`expo-image-manipulator` integration**: Photos taken with the live camera were massive (multi-megabyte) which caused the free Render server to time out. Integrated `ImageManipulator` in `camera.tsx` to drastically compress and downscale images (1000px width, 70% JPEG quality) before uploading, ensuring fast and reliable OCR processing.
 - **Removed Fake Data**: Discovered and removed a hardcoded fallback in `index.tsx` that silently loaded fake demo bounding boxes when the server crashed, ensuring the app correctly alerts users on connection failures.
 
 ### 3. Recent Scans & Persistent Storage
+
 - **`storage.ts` Utility**: Built a robust local storage system combining `expo-file-system/legacy` (to permanently save image thumbnails) and `@react-native-async-storage/async-storage` (to save harvested words and metadata).
 - **Forms Tab UI (`forms.tsx`)**: Completely redesigned the Forms tab to act as a history vault. It dynamically fetches and displays a list of recently scanned documents along with their thumbnail, date, and harvested word count.
 - **Harvested Words Detail (`form-details.tsx`)**: Created a new screen that lists the raw text extracted from previous scans. When users tap on a recent scan in the Forms tab, it instantly displays the words without re-querying the cloud server, saving data and processing power.
+
+---
+
+## Update: August 21, 2026 (12:47 AM)
+
+### 1. Fine-Tuned Local LLM Integration
+
+- **Ollama Integration (`llm.ts`)**: Integrated the fine-tuned local `offline_dict_8b` model into the app, connecting directly via the laptop's Mobile Hotspot IP (`192.168.137.1`).
+- **Dynamic Prompt Formatting**: Updated the prompt logic to precisely match the fine-tuned dataset format (`Define the word "..." in the context of this sentence: "..."`).
+- **Context Sentence Harvesting (`storage.ts`)**: Upgraded the local storage system to save the surrounding context sentence along with the tapped word from the OCR scan, ensuring the LLM receives the full context it was trained on.
+- **Language Selection Instruction**: Appended a specific instruction to the prompt (`Please generate the output in [Language]`) to force the model to output definitions in the user's selected language (Tagalog, Cebuano, or English).
+
+### 2. Interactive AI Dictionary UI (`form-details.tsx`)
+
+- **Slide-Up Modal**: Built an interactive slide-up modal that appears when a user taps a harvested word.
+- **Dynamic Language Rendering**: Modified the UI to conditionally render the dictionary definition based *only* on the user's language setting (e.g., if Tagalog is selected, the English definition is strictly hidden).
+- **Graceful JSON Fallback**: Added a robust error-handling fallback. If the LLM generates a non-standard JSON structure (which happens when an unknown word is tapped), the UI now seamlessly extracts the definition and renders it cleanly instead of crashing or showing raw JSON formatting.
+
+### PLEASE TAKE NOTE NA WALA PA NA AYO ANG UI SA PAG GENERATE ESPECIALLY SA TAGALOG OG BISAYA
