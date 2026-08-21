@@ -236,3 +236,25 @@ Today we successfully transitioned the application from a local testing environm
 - **Graceful JSON Fallback**: Added a robust error-handling fallback. If the LLM generates a non-standard JSON structure (which happens when an unknown word is tapped), the UI now seamlessly extracts the definition and renders it cleanly instead of crashing or showing raw JSON formatting.
 
 ### PLEASE TAKE NOTE NA WALA PA NA AYO ANG UI SA PAG GENERATE ESPECIALLY SA TAGALOG OG BISAYA
+
+### NAAYO NA ANG PAG GENERATE SA CEBUANO OG TAGALOG
+
+## Update: August 21, 2026 (2:20 PM)
+
+### 1. Refined the AI System Prompt
+- Identified that the local LLM (`offline_dict_8b`) generated raw text rather than JSON, causing UI parsing errors.
+- Created a robust, strict system prompt in `src/utils/llm.ts` to mandate strict JSON structure.
+- Demanded rich, highly accurate, and detailed context sentences for Tagalog and Cebuano (Bisaya) to retain fine-tuned model quality while fixing the JSON crashes.
+
+### 2. Extracted `<AiDictionaryModal />` Component
+- Abstracted over 150 lines of complex dictionary and LLM fetching logic from `form-details.tsx` into a new, highly reusable component: `src/components/ai-dictionary-modal.tsx`.
+- This ensures consistency across the app and allows any screen to instantly look up a word with AI.
+
+### 3. Integrated Dictionary into Scanners
+- Successfully injected the new `<AiDictionaryModal />` directly into both the live Camera preview (`src/app/camera.tsx`) and the main Home Document Scanner (`src/app/(tabs)/index.tsx`). 
+- Users can now tap any bounding box immediately after scanning to view definitions directly from the OCR overlay.
+
+### 4. Added Native Pinch-to-Zoom & Pan
+- Replaced basic static image rendering with a custom native gesture layer powered by `react-native-gesture-handler` and `react-native-reanimated`.
+- Implemented buttery-smooth, 60fps pinch-to-zoom and pan gestures across both `index.tsx` and `camera.tsx`.
+- Wrapped the app in `GestureHandlerRootView` inside `_layout.tsx` to guarantee zooming works flawlessly on Android, vastly improving the UX for pressing small blue OCR overlays.

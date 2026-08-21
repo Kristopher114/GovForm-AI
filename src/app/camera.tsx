@@ -3,6 +3,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 //import * as ImageManipulator from 'expo-image-manipulator';
 import { router } from 'expo-router';
+import AiDictionaryModal from '@/components/ai-dictionary-modal';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -58,6 +61,50 @@ export default function CameraOCRScreen() {
       requestPermission();
     }
   }, [permission]);
+
+  // --- Zoom & Pan Gesture State ---
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, savedScale.value * e.scale);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1) {
+        translateX.value = 0;
+        translateY.value = 0;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
 
   // Handle image capture and API upload
   const handleCapture = async () => {
@@ -146,6 +193,14 @@ export default function CameraOCRScreen() {
     setSelectedWord(null);
     setIsProcessing(false);
     setLoadingMessage('Processing document with OCR...');
+    
+    // Reset zoom state
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
   };
 
   // Handle Box Tap
@@ -187,60 +242,64 @@ export default function CameraOCRScreen() {
       {/* State 1: Captured Image & Interactive Bounding Boxes Overlay */}
       {capturedImage ? (
         <View style={styles.previewContainer} onLayout={handleLayout}>
-          <Image
-            source={{ uri: capturedImage.uri }}
-            style={styles.fullImage}
-            resizeMode="contain"
-          />
+          <GestureDetector gesture={composedGesture}>
+            <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+              <Image
+                source={{ uri: capturedImage.uri }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
 
-          {/* Bounding Box Overlay Layer */}
-          {containerSize.width > 0 &&
-            containerSize.height > 0 &&
-            (() => {
-              const containerW = containerSize.width;
-              const containerH = containerSize.height;
-              const imgAspect = capturedImage.width / capturedImage.height;
-              const containerAspect = containerW / containerH;
+              {/* Bounding Box Overlay Layer */}
+              {containerSize.width > 0 &&
+                containerSize.height > 0 &&
+                (() => {
+                  const containerW = containerSize.width;
+                  const containerH = containerSize.height;
+                  const imgAspect = capturedImage.width / capturedImage.height;
+                  const containerAspect = containerW / containerH;
 
-              let displayedW = containerW;
-              let displayedH = containerH;
-              let offsetX = 0;
-              let offsetY = 0;
+                  let displayedW = containerW;
+                  let displayedH = containerH;
+                  let offsetX = 0;
+                  let offsetY = 0;
 
-              if (containerAspect > imgAspect) {
-                displayedW = containerH * imgAspect;
-                offsetX = (containerW - displayedW) / 2;
-              } else {
-                displayedH = containerW / imgAspect;
-                offsetY = (containerH - displayedH) / 2;
-              }
+                  if (containerAspect > imgAspect) {
+                    displayedW = containerH * imgAspect;
+                    offsetX = (containerW - displayedW) / 2;
+                  } else {
+                    displayedH = containerW / imgAspect;
+                    offsetY = (containerH - displayedH) / 2;
+                  }
 
-              const scale = displayedW / capturedImage.width;
+                  const scaleVal = displayedW / capturedImage.width;
 
-              return boundingBoxes.map((item, index) => {
-                const boxStyle = {
-                  left: offsetX + item.x * scale,
-                  top: offsetY + item.y * scale,
-                  width: item.width * scale,
-                  height: item.height * scale,
-                };
+                  return boundingBoxes.map((item, index) => {
+                    const boxStyle = {
+                      left: offsetX + item.x * scaleVal,
+                      top: offsetY + item.y * scaleVal,
+                      width: item.width * scaleVal,
+                      height: item.height * scaleVal,
+                    };
 
-                const isSelected = selectedWord === item;
+                    const isSelected = selectedWord === item;
 
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.boundingBox,
-                      boxStyle,
-                      isSelected && styles.selectedBoundingBox,
-                    ]}
-                    onPress={() => handleBoxPress(item)}
-                  />
-                );
-              });
-            })()}
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.boundingBox,
+                          boxStyle,
+                          isSelected && styles.selectedBoundingBox,
+                        ]}
+                        onPress={() => handleBoxPress(item)}
+                      />
+                    );
+                  });
+                })()}
+            </Animated.View>
+          </GestureDetector>
 
           {/* Header Controls overlay */}
           <SafeAreaView style={styles.overlayHeader}>
@@ -253,20 +312,13 @@ export default function CameraOCRScreen() {
             </TouchableOpacity>
           </SafeAreaView>
 
-          {/* Active Word Detail Callout Card */}
-          {selectedWord && (
-            <View style={styles.wordDetailCard}>
-              <View style={styles.wordHeaderRow}>
-                <Text style={styles.wordText}>{selectedWord.text}</Text>
-                <TouchableOpacity onPress={() => setSelectedWord(null)}>
-                  <Ionicons name="close" size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-              {selectedWord.sentence && (
-                <Text style={styles.contextText}>"{selectedWord.sentence}"</Text>
-              )}
-            </View>
-          )}
+          {/* Active Word AI Dictionary Modal */}
+          <AiDictionaryModal
+            visible={selectedWord !== null}
+            wordText={selectedWord ? selectedWord.text : null}
+            wordSentence={selectedWord ? selectedWord.sentence : undefined}
+            onClose={() => setSelectedWord(null)}
+          />
 
           {/* Processing Spinner Overlay */}
           {isProcessing && (

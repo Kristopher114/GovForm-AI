@@ -20,9 +20,20 @@ const OLLAMA_URL = 'http://192.168.137.1:11434/api/generate';
 const MODEL_NAME = 'offline_dict_8b';
 
 export const defineWordWithLLM = async (word: string, sentence?: string, language: string = 'English'): Promise<LLMResponse> => {
-  const prompt = sentence 
+  const prompt = sentence
     ? `Define the word "${word}" in the context of this sentence: "${sentence}". Please generate the output in ${language}.`
     : `Define the word "${word}". Please generate the output in ${language}.`;
+
+  const systemPrompt = `You are a multilingual dictionary API. You MUST output ONLY valid JSON in this exact structure:
+{
+  "word": "<word>",
+  "context_sentence": "<sentence>",
+  "english": { "definition": "...", "synonyms": ["..."] },
+  "tagalog": { "definition": "...", "synonyms": ["..."], "example_sentence": "..." },
+  "bisaya": { "definition": "...", "synonyms": ["..."], "example_sentence": "..." }
+}
+You must ALWAYS provide all 3 language translations (English, Tagalog, and Bisaya) accurately.
+CRITICAL: The 'example_sentence' for Tagalog and Bisaya MUST be a rich, highly accurate, and detailed translation that perfectly matches the meaning and context of the original English context_sentence.`;
 
   try {
     const response = await fetch(OLLAMA_URL, {
@@ -32,6 +43,7 @@ export const defineWordWithLLM = async (word: string, sentence?: string, languag
       },
       body: JSON.stringify({
         model: MODEL_NAME,
+        system: systemPrompt,
         prompt: prompt,
         format: 'json',
         stream: false,

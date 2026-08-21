@@ -4,6 +4,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { useEffect, useState } from 'react';
 import { saveRecentForm } from '@/utils/storage';
 import {
@@ -64,6 +67,50 @@ export default function HomeScreen() {
     width: 0,
     height: 0,
   });
+
+  // --- Zoom & Pan Gesture State ---
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, savedScale.value * e.scale);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1) {
+        translateX.value = 0;
+        translateY.value = 0;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
 
   useEffect(() => {
     navigation.setOptions({
@@ -148,6 +195,14 @@ export default function HomeScreen() {
     setBoundingBoxes([]);
     setSelectedWord(null);
     setIsLoading(false);
+    
+    // Reset zoom state
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
   };
 
   // 1. Loading Screen State
@@ -183,73 +238,70 @@ export default function HomeScreen() {
 
         <View style={styles.previewCardContainer}>
           <View style={styles.darkCard} onLayout={handleCardLayout}>
-            <Image source={{ uri: image.uri }} style={styles.documentImage} resizeMode="contain" />
+            <GestureDetector gesture={composedGesture}>
+              <Animated.View style={[StyleSheet.absoluteFill, animatedStyle, { padding: 20, justifyContent: 'center', alignItems: 'center' }]}>
+                <Image source={{ uri: image.uri }} style={styles.documentImage} resizeMode="contain" />
 
-            {/* Google Lens Interactive Bounding Box Overlays */}
-            {cardLayout.width > 0 &&
-              cardLayout.height > 0 &&
-              (() => {
-                const containerW = cardLayout.width - 40;
-                const containerH = cardLayout.height - 40;
-                const imgAspect = image.width / image.height;
-                const containerAspect = containerW / containerH;
+                {/* Google Lens Interactive Bounding Box Overlays */}
+                {cardLayout.width > 0 &&
+                  cardLayout.height > 0 &&
+                  (() => {
+                    const containerW = cardLayout.width - 40;
+                    const containerH = cardLayout.height - 40;
+                    const imgAspect = image.width / image.height;
+                    const containerAspect = containerW / containerH;
 
-                let displayedW = containerW;
-                let displayedH = containerH;
-                let offsetX = 20;
-                let offsetY = 20;
+                    let displayedW = containerW;
+                    let displayedH = containerH;
+                    let offsetX = 0; // relative to inner animated view which has padding
+                    let offsetY = 0;
 
-                if (containerAspect > imgAspect) {
-                  displayedW = containerH * imgAspect;
-                  offsetX = 20 + (containerW - displayedW) / 2;
-                } else {
-                  displayedH = containerW / imgAspect;
-                  offsetY = 20 + (containerH - displayedH) / 2;
-                }
+                    if (containerAspect > imgAspect) {
+                      displayedW = containerH * imgAspect;
+                      offsetX = (containerW - displayedW) / 2;
+                    } else {
+                      displayedH = containerW / imgAspect;
+                      offsetY = (containerH - displayedH) / 2;
+                    }
 
-                const scale = displayedW / image.width;
+                    const scaleVal = displayedW / image.width;
 
-                return boundingBoxes.map((item, index) => {
-                  const boxStyle = {
-                    left: offsetX + item.x * scale,
-                    top: offsetY + item.y * scale,
-                    width: item.width * scale,
-                    height: item.height * scale,
-                  };
+                    return boundingBoxes.map((item, index) => {
+                      const boxStyle = {
+                        left: offsetX + item.x * scaleVal + 20, // add padding back
+                        top: offsetY + item.y * scaleVal + 20,
+                        width: item.width * scaleVal,
+                        height: item.height * scaleVal,
+                      };
 
-                  const isSelected = selectedWord === item;
+                      const isSelected = selectedWord === item;
 
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.boundingBox,
-                        boxStyle,
-                        isSelected && styles.selectedBoundingBox,
-                      ]}
-                      onPress={() => setSelectedWord(item)}
-                    />
-                  );
-                });
-              })()}
+                      return (
+                        <TouchableOpacity
+                          key={index}
+                          activeOpacity={0.7}
+                          style={[
+                            styles.boundingBox,
+                            boxStyle,
+                            isSelected && styles.selectedBoundingBox,
+                          ]}
+                          onPress={() => setSelectedWord(item)}
+                        />
+                      );
+                    });
+                  })()}
+              </Animated.View>
+            </GestureDetector>
           </View>
         </View>
 
-        {/* Selected Word Callout Card */}
-        {selectedWord && (
-          <View style={styles.wordDetailCard}>
-            <View style={styles.wordHeaderRow}>
-              <Text style={styles.wordText}>{selectedWord.text}</Text>
-              <TouchableOpacity onPress={() => setSelectedWord(null)}>
-                <Ionicons name="close" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-            {selectedWord.sentence && (
-              <Text style={styles.contextText}>"{selectedWord.sentence}"</Text>
-            )}
-          </View>
-        )}
+        {/* Selected Word AI Dictionary Modal */}
+        <AiDictionaryModal
+          visible={selectedWord !== null}
+          wordText={selectedWord ? selectedWord.text : null}
+          wordSentence={selectedWord ? selectedWord.sentence : undefined}
+          onClose={() => setSelectedWord(null)}
+        />
       </SafeAreaView>
     );
   }
