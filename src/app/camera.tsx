@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
-//import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { router } from 'expo-router';
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,11 +19,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// -----------------------------------------------------------------------------
-// CONFIGURATION: Set your local Python server IP here
-// -----------------------------------------------------------------------------
-const PYTHON_API_URL = 'https://govform-ai-7uef.onrender.com/scan';
 
 export interface BoundingBoxItem {
   id?: string;
@@ -140,46 +136,32 @@ export default function CameraOCRScreen() {
 
       setLoadingMessage('Uploading image...');
 
-      // POST Request to local Python server with Automatic Retry for Render Cold Starts
-      let response;
-      let retries = 6;
+      // Skip Python Server! Process locally with Google ML Kit.
+      const result = await TextRecognition.recognize(manipResult.uri);
 
-      for (let i = 0; i < retries; i++) {
-        try {
-          // Use expo-file-system instead of fetch for reliable Native file uploads in production APKs
-          response = await FileSystem.uploadAsync(PYTHON_API_URL, manipResult.uri, {
-            fieldName: 'file',
-            httpMethod: 'POST',
-            uploadType: 1, // MULTIPART
-          });
+      // Map ML Kit block format to our BoundingBoxItem format
+      const data: BoundingBoxItem[] = result.blocks.map((block: any) => {
+        // Create a rudimentary context sentence by concatenating all lines in the block
+        const sentence = block.lines 
+          ? block.lines.map((l: any) => l.text).join(' ') 
+          : block.text;
 
-          if (response.status === 200) break; // Success! Exit the retry loop.
+        return {
+          text: block.text,
+          sentence: sentence,
+          x: block.frame?.left || 0,
+          y: block.frame?.top || 0,
+          width: block.frame?.width || 0,
+          height: block.frame?.height || 0,
+        };
+      });
 
-          // If the server returns a 502 Bad Gateway (which it does while waking up), we force an error to trigger the 15-second sleep!
-          throw new Error(`Server returned status ${response.status}`);
-
-        } catch (error) {
-          if (i === retries - 1) throw error; // If last try fails, throw error
-
-          console.log(`Connection failed. Retrying... (${i + 1}/${retries})`);
-          setLoadingMessage('Waking up cloud server (this can take up to 2 minutes)...');
-
-          // Wait 15 seconds before trying again to let Render boot up
-          await new Promise(resolve => setTimeout(resolve, 15000));
-        }
-      }
-
-      if (!response || response.status !== 200) {
-        throw new Error(`Server returned status ${response?.status}`);
-      }
-
-      const data: BoundingBoxItem[] = JSON.parse(response.body);
       setBoundingBoxes(data);
     } catch (error) {
-      console.error('OCR Processing Error:', error);
+      console.error('ML Kit OCR Processing Error:', error);
       Alert.alert(
-        'Connection Error',
-        `Could not connect to Python API at ${PYTHON_API_URL}. Ensure server is running.`
+        'Processing Error',
+        'Could not run text recognition locally on the image.'
       );
     } finally {
       setIsProcessing(false);

@@ -7,6 +7,7 @@ import { router, useNavigation } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { useEffect, useState } from 'react';
 import { saveRecentForm } from '@/utils/storage';
 import {
@@ -20,9 +21,6 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// Use 10.0.2.2 if testing on Android Emulator, or your IP (192.168.x.x) if testing on physical phone
-const PYTHON_API_URL = 'https://govform-ai-7uef.onrender.com/scan';
 
 export interface BoundingBoxItem {
   id?: string;
@@ -124,33 +122,35 @@ export default function HomeScreen() {
     setSelectedWord(null);
 
     try {
-      // Use expo-file-system for a reliable native file upload
-      const response = await FileSystem.uploadAsync(PYTHON_API_URL, uri, {
-        fieldName: 'file',
-        httpMethod: 'POST',
-        uploadType: 1, // 1 corresponds to MULTIPART in Expo FileSystem
+      // Process locally with Google ML Kit
+      const result = await TextRecognition.recognize(uri);
+
+      // Map ML Kit block format to our BoundingBoxItem format
+      const data: BoundingBoxItem[] = result.blocks.map((block: any) => {
+        const sentence = block.lines 
+          ? block.lines.map((l: any) => l.text).join(' ') 
+          : block.text;
+
+        return {
+          text: block.text,
+          sentence: sentence,
+          x: block.frame?.left || 0,
+          y: block.frame?.top || 0,
+          width: block.frame?.width || 0,
+          height: block.frame?.height || 0,
+        };
       });
 
-      if (response.status === 200) {
-        const data: BoundingBoxItem[] = JSON.parse(response.body);
-        console.log(`✅ Received ${data.length} bounding boxes from server!`);
-        console.log(data.slice(0, 2)); // Print just the first two to keep console clean
-        setBoundingBoxes(data);
-        
-        // Save to recents in the background
-        saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));
-      } else {
-        console.log(`❌ Server Error! Status: ${response.status}`);
-        Alert.alert(
-          'Connection Error',
-          `Could not connect to Python API at ${PYTHON_API_URL}. Ensure server is running.`
-        );
-      }
+      console.log(`✅ Received ${data.length} bounding boxes from ML Kit!`);
+      setBoundingBoxes(data);
+      
+      // Save to recents in the background
+      saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));
     } catch (e) {
-      console.log('Error hitting Python API:', e);
+      console.error('ML Kit OCR Processing Error:', e);
       Alert.alert(
-        'Connection Error',
-        `Could not connect to Python API at ${PYTHON_API_URL}. Ensure server is running.`
+        'Processing Error',
+        'Could not run text recognition locally on the image.'
       );
     } finally {
       setIsLoading(false);

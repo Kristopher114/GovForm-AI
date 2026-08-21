@@ -242,19 +242,62 @@ Today we successfully transitioned the application from a local testing environm
 ## Update: August 21, 2026 (2:20 PM)
 
 ### 1. Refined the AI System Prompt
+
 - Identified that the local LLM (`offline_dict_8b`) generated raw text rather than JSON, causing UI parsing errors.
 - Created a robust, strict system prompt in `src/utils/llm.ts` to mandate strict JSON structure.
 - Demanded rich, highly accurate, and detailed context sentences for Tagalog and Cebuano (Bisaya) to retain fine-tuned model quality while fixing the JSON crashes.
 
 ### 2. Extracted `<AiDictionaryModal />` Component
+
 - Abstracted over 150 lines of complex dictionary and LLM fetching logic from `form-details.tsx` into a new, highly reusable component: `src/components/ai-dictionary-modal.tsx`.
 - This ensures consistency across the app and allows any screen to instantly look up a word with AI.
 
 ### 3. Integrated Dictionary into Scanners
-- Successfully injected the new `<AiDictionaryModal />` directly into both the live Camera preview (`src/app/camera.tsx`) and the main Home Document Scanner (`src/app/(tabs)/index.tsx`). 
+
+- Successfully injected the new `<AiDictionaryModal />` directly into both the live Camera preview (`src/app/camera.tsx`) and the main Home Document Scanner (`src/app/(tabs)/index.tsx`).
 - Users can now tap any bounding box immediately after scanning to view definitions directly from the OCR overlay.
 
 ### 4. Added Native Pinch-to-Zoom & Pan
+
 - Replaced basic static image rendering with a custom native gesture layer powered by `react-native-gesture-handler` and `react-native-reanimated`.
 - Implemented buttery-smooth, 60fps pinch-to-zoom and pan gestures across both `index.tsx` and `camera.tsx`.
 - Wrapped the app in `GestureHandlerRootView` inside `_layout.tsx` to guarantee zooming works flawlessly on Android, vastly improving the UX for pressing small blue OCR overlays.
+
+## August 21, 2026 (5:06 PM)
+
+The transition from a slow Python Cloud OCR server to an instant, on-device Google ML Kit OCR is complete!
+
+## What Changed
+
+### 1. Dependencies and Permissions
+
+- Installed `@react-native-ml-kit/text-recognition` for processing images locally without the need for an internet connection or backend server.
+- Added `expo-build-properties` to `app.json` to ensure your app automatically uses Android minimum SDK 24, which is required to bundle the Google ML Kit C++ modules during native compilation.
+
+### 2. Camera Capture Integration ([`camera.tsx`](file:///c:/Users/KrisToper/Desktop/Capstone_AI_APP/src/app/camera.tsx))
+
+- Ripped out all the `FileSystem.uploadAsync` logic and the complex retry logic that waited for the Python server to wake up.
+- Replaced it with `TextRecognition.recognize()`.
+- **The Magic:** I created a mapper that automatically translates the raw ML Kit block output into our existing `BoundingBoxItem` interface. This means our beautiful Pinch-to-Zoom gestures and AI Dictionary Modal will continue to work perfectly on the new bounding boxes without changing any of that UI code!
+
+### 3. Gallery Upload Integration ([`index.tsx`](file:///c:/Users/KrisToper/Desktop/Capstone_AI_APP/src/app/(tabs)/index.tsx))
+
+- Because we used the static image scanner version of ML Kit instead of live video frames, we were able to seamlessly bring the local OCR into your main Home screen as well!
+- Any document chosen from the phone's gallery will now be processed instantly by ML Kit on the device.
+
+## How to Test and Run
+
+Because your app now contains custom native Java/C++ code from Google ML Kit, **it will no longer run inside the standard "Expo Go" app from the Play Store.**
+
+To test it on your device:
+
+1. Ensure your phone is plugged in with USB debugging enabled.
+2. In your computer's terminal, stop any running Expo processes.
+3. Run this command:
+
+   ```bash
+   npx expo run:android
+   ```
+
+4. This will compile a custom "Dev Client" APK directly onto your phone. It will take a few minutes the first time.
+5. Once it installs, open the app, point your camera at a document, and press Capture. The bounding boxes should appear in a fraction of a second!
