@@ -301,3 +301,15 @@ To test it on your device:
 
 4. This will compile a custom "Dev Client" APK directly onto your phone. It will take a few minutes the first time.
 5. Once it installs, open the app, point your camera at a document, and press Capture. The bounding boxes should appear in a fraction of a second!
+
+## Update: August 21, 2026 (6:00 PM)
+
+### 1. Gemini API Integration
+- We explored using Google's Gemini API as an alternative to the locally-hosted Ollama model to generate better, more accurate dictionary definitions.
+- We tested `gemini-3.6-flash` and migrated the main LLM fetching logic in `src/utils/llm.ts` to use this API.
+- Secured the API Key using an `EXPO_PUBLIC_GEMINI_API_KEY` environment variable in a local `.env` file (which is ignored by Git).
+- Enabled `responseMimeType: "application/json"` in the Gemini generation config to guarantee valid JSON formatting and completely eliminate UI parsing crashes.
+
+### 2. Conversational Prompt Engineering
+- Updated the AI system prompt in `src/utils/llm.ts` to explicitly instruct the model that translated example sentences (Tagalog and Bisaya) MUST be natural, conversational, and everyday-spoken instead of overly formal.
+- Updated the UI in `src/components/ai-dictionary-modal.tsx` to say "Asking Gemini Flash 3.6..." instead of Llama.

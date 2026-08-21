@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import { useLocalization } from '@/context/LocalizationContext';
+import { defineWordWithLLM, LLMResponse } from '@/utils/llm';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { defineWordWithLLM, LLMResponse } from '@/utils/llm';
-import { useLocalization } from '@/context/LocalizationContext';
 
 interface AiDictionaryModalProps {
   visible: boolean;
@@ -26,7 +26,7 @@ export default function AiDictionaryModal({
   onClose,
 }: AiDictionaryModalProps) {
   const { language } = useLocalization();
-  
+
   const [isLlmLoading, setIsLlmLoading] = useState(false);
   const [llmResult, setLlmResult] = useState<LLMResponse | null>(null);
   const [llmError, setLlmError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export default function AiDictionaryModal({
   useEffect(() => {
     const fetchDefinition = async () => {
       if (!visible || !wordText) return;
-      
+
       setLlmResult(null);
       setLlmError(null);
       setIsLlmLoading(true);
@@ -43,7 +43,7 @@ export default function AiDictionaryModal({
         const result = await defineWordWithLLM(wordText, wordSentence, language);
         setLlmResult(result);
       } catch (err: any) {
-        setLlmError(err.message || 'Failed to connect to the local LLM. Make sure your laptop hotspot is active and Ollama is running.');
+        setLlmError(err.message || 'Failed to connect to Gemini Flash 3.6. Make sure your device has internet connection.');
       } finally {
         setIsLlmLoading(false);
       }
@@ -79,7 +79,7 @@ export default function AiDictionaryModal({
           {isLlmLoading && (
             <View style={styles.llmLoadingContainer}>
               <ActivityIndicator size="large" color="#2182DE" />
-              <Text style={styles.loadingText}>Asking Llama 3.1...</Text>
+              <Text style={styles.loadingText}>Asking Gemini Flash 3.6...</Text>
             </View>
           )}
 
@@ -97,7 +97,7 @@ export default function AiDictionaryModal({
               {(() => {
                 let displaySentence = llmResult.context_sentence;
                 let isOriginal = true;
-                
+
                 if (language === 'Tagalog' && llmResult.tagalog?.example_sentence) {
                   displaySentence = llmResult.tagalog.example_sentence;
                   isOriginal = false;
@@ -161,7 +161,7 @@ export default function AiDictionaryModal({
                 <View>
                   {Object.entries(llmResult).map(([key, value]) => {
                     if (key === 'word' || key === 'context_sentence') return null;
-                    
+
                     const isStructured = typeof value === 'object' && value !== null && 'definition' in value;
 
                     return (
