@@ -313,3 +313,17 @@ To test it on your device:
 ### 2. Conversational Prompt Engineering
 - Updated the AI system prompt in `src/utils/llm.ts` to explicitly instruct the model that translated example sentences (Tagalog and Bisaya) MUST be natural, conversational, and everyday-spoken instead of overly formal.
 - Updated the UI in `src/components/ai-dictionary-modal.tsx` to say "Asking Gemini Flash 3.6..." instead of Llama.
+
+## Update: August 22, 2026
+
+### 1. Bypassing EAS Build Limits & Secrets
+- Reached the monthly free-tier limit for `eas build` on the primary Expo account.
+- Discovered that EAS Cloud builds ignore local `.env` files (because of `.gitignore`), which caused the Gemini API key to be missing in cloud-built APKs.
+- **Solution:** We switched to building the Release APK entirely locally using `npx expo run:android --variant release`. This bypassed the cloud queues, circumvented the build limits, and successfully bundled the local `.env` variables natively.
+
+### 2. Resolving Gradle Build Crashes & Bug Fixes
+- Encountered the infamous `DexArchiveMergerException` (exceeding 65k methods or corrupted cache) after adding ML Kit.
+- **Fix:** Performed a clean slate wipe of the Android Gradle cache using `cd android && .\gradlew clean` to resolve the duplicate dex archives.
+- Fixed a minor import typo (`ImageManipulator`) in `camera.tsx` that was causing the JS bundle to fail during the release build.
+- **Bug Fix:** Discovered that the ML Kit migration accidentally deleted the code that saves live camera captures to the "Recent Scans" storage. Re-imported and invoked `saveRecentForm` inside `camera.tsx` to fix this.
+- **Important Note:** Always remember to clear the Metro Bundler cache (`npx expo start -c`) whenever you add or change variables in the `.env` file!

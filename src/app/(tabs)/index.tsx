@@ -150,7 +150,7 @@ export default function HomeScreen() {
       console.error('ML Kit OCR Processing Error:', e);
       Alert.alert(
         'Processing Error',
-        'Could not run text recognition locally on the image.'
+        'Could not run text recognition locally. Details: ' + (e instanceof Error ? e.message : String(e))
       );
     } finally {
       setIsLoading(false);

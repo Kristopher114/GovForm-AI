@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { router } from 'expo-router';
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
+import { saveRecentForm } from '@/utils/storage';
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export interface BoundingBoxItem {
@@ -142,8 +142,8 @@ export default function CameraOCRScreen() {
       // Map ML Kit block format to our BoundingBoxItem format
       const data: BoundingBoxItem[] = result.blocks.map((block: any) => {
         // Create a rudimentary context sentence by concatenating all lines in the block
-        const sentence = block.lines 
-          ? block.lines.map((l: any) => l.text).join(' ') 
+        const sentence = block.lines
+          ? block.lines.map((l: any) => l.text).join(' ')
           : block.text;
 
         return {
@@ -157,11 +157,14 @@ export default function CameraOCRScreen() {
       });
 
       setBoundingBoxes(data);
+
+      // Save to recents in the background
+      saveRecentForm(manipResult.uri, data).catch(err => console.log('Failed to save to recents', err));
     } catch (error) {
       console.error('ML Kit OCR Processing Error:', error);
       Alert.alert(
         'Processing Error',
-        'Could not run text recognition locally on the image.'
+        'Could not run text recognition locally. Details: ' + (error instanceof Error ? error.message : String(error))
       );
     } finally {
       setIsProcessing(false);
@@ -175,7 +178,7 @@ export default function CameraOCRScreen() {
     setSelectedWord(null);
     setIsProcessing(false);
     setLoadingMessage('Processing document with OCR...');
-    
+
     // Reset zoom state
     scale.value = 1;
     savedScale.value = 1;
