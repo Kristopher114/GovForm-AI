@@ -372,3 +372,14 @@ To test it on your device:
 - **Mathematical Validation**: Re-implemented the mathematical Laplacian variance algorithm natively to calculate the sharpness (blur score) of an image instantly.
 - **Pre-OCR Gatekeeper**: Integrated the blur detector into both the live Camera (`camera.tsx`) and Gallery Uploads (`index.tsx`). It intercepts images and rejects them *before* they are sent to Google ML Kit or the Python server if the blur score is below the calculated threshold (`1000.0`), saving processing power and improving OCR accuracy.
 - **Navigation Safety**: Fixed an Expo Router development warning by wrapping `router.back()` calls with safe `router.canGoBack()` checks across the app.
+
+## Update: October 3, 2026
+
+### 1. Cloudflare Tunnels & Public Exposure
+- **Local Server Public Routing**: Evaluated and implemented a solution to securely expose the local Python OCR server (`local_ocr_server.py`) to the public internet using Cloudflare Tunnels (`cloudflared`). This bypasses the need for manual port forwarding on local routers.
+- **Robust URL Parsing**: Rewrote the `desktopIp` parsing logic in `src/app/camera.tsx` and `src/app/(tabs)/index.tsx`. The networking layer now dynamically detects if the user provides a raw IP or a full URL (like a Cloudflare tunnel address).
+- **Foolproof DNS Fallbacks**: Added safeguards to strip trailing slashes, trim accidental whitespace, and enforce case-insensitivity on the HTTP/HTTPS scheme (e.g. automatically handling mobile auto-capitalization errors like `Https://`).
+
+### 2. Android Build Infrastructure
+- **JAVA_HOME Correction**: Identified and permanently resolved a local environment variable misconfiguration pointing to an outdated Android Studio JDK (`jb` vs `jbr`).
+- **Gradle Daemon Lock Recovery**: Handled a known Windows Gradle `java.net.BindException` (FileLockContentionHandler) caused by zombie Java processes holding port locks. Successfully purged the corrupted `android/.gradle` cache to restore native compilation capabilities.

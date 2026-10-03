@@ -1,18 +1,16 @@
+import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { useLocalization } from '@/context/LocalizationContext';
+import { getOcrSettings } from '@/utils/ocr-settings';
+import { saveRecentForm } from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation } from 'expo-router';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
-import AiDictionaryModal from '@/components/ai-dictionary-modal';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { useEffect, useState } from 'react';
-import { saveRecentForm } from '@/utils/storage';
-import { getOcrSettings } from '@/utils/ocr-settings';
-import ExpoBlurDetector from '../../../modules/expo-blur-detector/src/ExpoBlurDetectorModule';
 import {
+  Alert,
   Image,
   LayoutChangeEvent,
   ScrollView,
@@ -20,9 +18,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ExpoBlurDetector from '../../../modules/expo-blur-detector/src/ExpoBlurDetectorModule';
 
 export interface BoundingBoxItem {
   id?: string;
@@ -125,7 +125,7 @@ export default function HomeScreen() {
 
     try {
       const blurScore = await ExpoBlurDetector.getBlurScore(uri);
-      
+
       if (blurScore < 1000.0) {
         Alert.alert("Image Blurry", "The image is too blurry. Please upload a clearer photo.");
         setImage(null);
@@ -137,7 +137,15 @@ export default function HomeScreen() {
       let data: BoundingBoxItem[] = [];
 
       if (ocrSettings.mode === 'desktop') {
-        const url = `http://${ocrSettings.desktopIp}:8000/predict`;
+        let cleanIp = ocrSettings.desktopIp.trim();
+        if (cleanIp.endsWith('/')) {
+          cleanIp = cleanIp.slice(0, -1);
+        }
+
+        const baseUrl = cleanIp.toLowerCase().startsWith('http')
+          ? cleanIp
+          : `http://${cleanIp}:8000`;
+        const url = `${baseUrl}/predict`;
         const response = await FileSystem.uploadAsync(url, uri, {
           fieldName: 'file',
           httpMethod: 'POST',
@@ -208,7 +216,7 @@ export default function HomeScreen() {
 
       console.log(`✅ Received ${data.length} bounding boxes from OCR!`);
       setBoundingBoxes(data);
-      
+
       // Save to recents in the background
       saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));
     } catch (e) {
@@ -260,7 +268,7 @@ export default function HomeScreen() {
     setBoundingBoxes([]);
     setSelectedWord(null);
     setIsLoading(false);
-    
+
     // Reset zoom state
     scale.value = 1;
     savedScale.value = 1;

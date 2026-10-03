@@ -168,7 +168,15 @@ export default function CameraOCRScreen() {
       let data: BoundingBoxItem[] = [];
 
       if (ocrSettings.mode === 'desktop') {
-        const url = `http://${ocrSettings.desktopIp}:8000/predict`;
+        let cleanIp = ocrSettings.desktopIp.trim();
+        if (cleanIp.endsWith('/')) {
+          cleanIp = cleanIp.slice(0, -1);
+        }
+        
+        const baseUrl = cleanIp.toLowerCase().startsWith('http') 
+          ? cleanIp 
+          : `http://${cleanIp}:8000`;
+        const url = `${baseUrl}/predict`;
         const response = await FileSystem.uploadAsync(url, manipResult.uri, {
           fieldName: 'file',
           httpMethod: 'POST',
