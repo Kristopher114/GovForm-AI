@@ -1,6 +1,7 @@
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { getOcrSettings } from '@/utils/ocr-settings';
 import { saveRecentForm } from '@/utils/storage';
+import { detectFormTypeByKeywords, getFormSummary } from '@/utils/classification';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -20,7 +21,7 @@ import {
 } from 'react-native';
 import DocumentScanner from 'react-native-document-scanner-plugin';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, SlideInLeft, SlideOutLeft } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export interface BoundingBoxItem {
@@ -45,6 +46,7 @@ export default function CameraOCRScreen() {
   const [loadingMessage, setLoadingMessage] = useState('Processing document with OCR...');
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
   const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
+  const [detectedForm, setDetectedForm] = useState<{type: string, summary: string} | null>(null);
 
   // Layout container dimensions for accurate coordinate scaling
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
@@ -166,6 +168,7 @@ export default function CameraOCRScreen() {
 
       const ocrSettings = await getOcrSettings();
       let data: BoundingBoxItem[] = [];
+      let visualFormType: string | undefined = undefined;
 
       if (ocrSettings.mode === 'desktop') {
         let cleanIp = ocrSettings.desktopIp.trim();
@@ -185,6 +188,9 @@ export default function CameraOCRScreen() {
 
         if (response.status === 200) {
           const result = JSON.parse(response.body);
+          if (result.formType && result.formType !== 'UNKNOWN') {
+            visualFormType = result.formType;
+          }
           data = result.boxes.map((box: any) => ({
             text: box.text,
             sentence: box.text, // Fallback to text since Python Tesseract doesn't currently group sentences
@@ -247,8 +253,28 @@ export default function CameraOCRScreen() {
 
       setBoundingBoxes(data);
 
-      // Save to recents in the background
-      saveRecentForm(manipResult.uri, data).catch(err => console.log('Failed to save to recents', err));
+      // Document Classification
+      try {
+        let formType = "UNKNOWN";
+        if (visualFormType) {
+          formType = visualFormType;
+          console.log("Visual OpenCV classified form as:", formType);
+        } else {
+          const fullText = data.map(b => b.text).join(' ');
+          formType = detectFormTypeByKeywords(fullText);
+          console.log("Keyword classified form as:", formType);
+        }
+        
+        // Save to recents in the background with classification title
+        saveRecentForm(manipResult.uri, data, formType).catch(err => console.log('Failed to save to recents', err));
+        
+        const summary = getFormSummary(formType);
+        const displayType = formType === "UNKNOWN" ? "Unknown Document" : formType;
+        setDetectedForm({ type: displayType, summary: summary });
+      } catch (err) {
+        // Fallback
+        saveRecentForm(manipResult.uri, data).catch(err => console.log('Failed to save to recents', err));
+      }
     } catch (error) {
       console.error('ML Kit OCR Processing Error:', error);
       Alert.alert(
@@ -266,6 +292,7 @@ export default function CameraOCRScreen() {
     setCapturedImage(null);
     setBoundingBoxes([]);
     setSelectedWord(null);
+    setDetectedForm(null);
     setIsProcessing(false);
     setIsScannerOpen(false);
     setLoadingMessage('Processing document with OCR...');
@@ -384,6 +411,25 @@ export default function CameraOCRScreen() {
             onClose={() => setSelectedWord(null)}
           />
 
+          {/* Sidebar Overlay for Form Classification */}
+          {detectedForm && (
+            <Animated.View 
+              style={styles.sidebarContainer}
+              entering={SlideInLeft.duration(400).springify()}
+              exiting={SlideOutLeft.duration(300)}
+            >
+              <TouchableOpacity style={styles.closeSidebarBtn} onPress={() => setDetectedForm(null)}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <View style={styles.sidebarContent}>
+                <Ionicons name="document-text" size={36} color="#0A84FF" style={{ marginBottom: 12 }} />
+                <Text style={styles.sidebarTitle}>{detectedForm.type}</Text>
+                <View style={styles.sidebarDivider} />
+                <Text style={styles.sidebarSummary}>{detectedForm.summary}</Text>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Processing Spinner Overlay */}
           {isProcessing && (
             <View style={styles.processingOverlay}>
@@ -470,5 +516,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     fontWeight: '600',
+  },
+  sidebarContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '40%',
+    backgroundColor: 'rgba(20, 20, 22, 0.85)',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 200,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 5, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  closeSidebarBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 210,
+  },
+  sidebarContent: {
+    marginTop: 40,
+  },
+  sidebarTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  sidebarDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginVertical: 15,
+  },
+  sidebarSummary: {
+    color: '#E0E0E0',
+    fontSize: 15,
+    lineHeight: 22,
   },
 });

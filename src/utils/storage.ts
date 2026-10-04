@@ -28,7 +28,8 @@ const STORAGE_KEY = '@govform_recent_scans';
 
 export const saveRecentForm = async (
   originalUri: string,
-  boundingBoxes: BoundingBoxItem[]
+  boundingBoxes: BoundingBoxItem[],
+  customTitle?: string
 ) => {
   try {
     // 1. Copy image to a permanent document directory so it doesn't get cleared by the OS
@@ -49,7 +50,9 @@ export const saveRecentForm = async (
     // 3. Create the record
     const newRecord: RecentForm = {
       id: Date.now().toString(),
-      title: `Scanned Document - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      title: customTitle && customTitle !== "UNKNOWN" 
+        ? customTitle 
+        : `Scanned Document - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
       dateStr: new Date().toLocaleString(),
       thumbnailUri: permanentUri,
       words,

@@ -383,3 +383,16 @@ To test it on your device:
 ### 2. Android Build Infrastructure
 - **JAVA_HOME Correction**: Identified and permanently resolved a local environment variable misconfiguration pointing to an outdated Android Studio JDK (`jb` vs `jbr`).
 - **Gradle Daemon Lock Recovery**: Handled a known Windows Gradle `java.net.BindException` (FileLockContentionHandler) caused by zombie Java processes holding port locks. Successfully purged the corrupted `android/.gradle` cache to restore native compilation capabilities.
+
+## Update: October 4, 2026
+
+### 1. Hybrid Document Classification (Visual + Keyword)
+- **OpenCV ORB Feature Matching (`local_ocr_server.py`)**: Upgraded the local Python server to perform structural visual matching of full documents using the ORB (Oriented FAST and Rotated BRIEF) algorithm. The server dynamically scans the `templates/` folder and loads full-page images as visual references.
+- **Robust False-Positive Filtering**: Replaced naive matching with `cv2.knnMatch` and implemented **Lowe's Ratio Test** (at a 0.75 ratio) to mathematically discard random visual similarities. Increased the good match threshold to guarantee that generic text documents are not falsely classified as official forms.
+- **Automated Subfolder Mapping**: The server recursively walks the `templates/` directory, automatically identifying forms grouped in subfolders (e.g., `templates/pmrf/...`) and accurately mapping them to their official string titles via a predefined dictionary.
+- **Keyword Fallback System (`classification.ts`)**: If visual classification fails or the app is running in native Google ML Kit mode, the app falls back to a highly optimized string-matching algorithm. It uses a strict hierarchy system (e.g. prioritizing COMELEC over Birth Certificates) to prevent cross-contamination if secondary pages contain overlapping keywords.
+
+### 2. Animated Form Overlay & Factual Summaries
+- **Factual Summaries**: Developed a `getFormSummary` utility that acts as a hardcoded dictionary for all 7 supported government forms, providing instant, factual descriptions of what the scanned document is used for without needlessly wasting LLM cloud resources.
+- **Glassmorphism Sliding Sidebar**: Replaced the intrusive system `Alert.alert` with a premium, animated Left Sidebar Overlay built with `react-native-reanimated` (`SlideInLeft`). The sidebar utilizes translucent glassmorphism aesthetics, allowing the user to seamlessly interact with OCR bounding boxes while viewing the classification results.
+- **Unknown Document Handling**: Ensured the sleek sidebar gracefully slides in even when a document is unrecognizable, presenting a standardized "Unknown Document" state to maintain a consistent UI experience.
