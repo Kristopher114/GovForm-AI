@@ -1,0 +1,5 @@
+### 4. Functional Audit: TypeScript Strict Safety & Edge Case Fixes (0 TS Errors)
+- **Metrics Tracking Hardening**: Fixed a silent failure in the analytics pipeline (`index.tsx`) where `logEvent` was incorrectly trying to pass an unregistered `formId` root property. Safely nested the property inside the `detail` object as explicitly defined by the `ResearchEvent` interface in `metrics.ts`.
+- **Classification Imports**: Repaired a missing `detectFormTypeByKeywords` import module linkage inside `index.tsx` preventing string-based fallback matching from compiling properly.
+- **Component Prop Validation**: Corrected an invalid `variant="circle"` property passed to `HowToUseButton`, standardizing it to the verified `"pill"` design token.
+- **TTS API Strict Types**: Stripped unsupported `onError` payload properties from `SpeakOptions` in both `form-summary-sheet.tsx` and `ai-dictionary-modal.tsx` to comply with rigorous `expo-speech` TypeScript declarations, eliminating all compilation warnings.

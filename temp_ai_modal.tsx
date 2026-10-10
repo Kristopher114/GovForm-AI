@@ -1,4 +1,4 @@
-import { TranslationKey } from "@/constants/translations";
+﻿import { TranslationKey } from "@/constants/translations";
 import { useLocalization } from "@/context/LocalizationContext";
 import { lookupDictionary } from "@/utils/glossary";
 import {
@@ -474,6 +474,7 @@ export default function AiDictionaryModal({
 
     speakText(text, language, {
       onDone: finish,
+      onError: finish,
     });
   };
 

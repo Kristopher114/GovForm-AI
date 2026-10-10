@@ -2,7 +2,15 @@ import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { useLocalization } from '@/context/LocalizationContext';
 import { getOcrSettings } from '@/utils/ocr-settings';
 import { saveRecentForm } from '@/utils/storage';
-import { detectFormTypeByKeywords, getFormSummary } from '@/utils/classification';
+import FormSummaryChip from '@/components/form-summary-sheet';
+import { HowToUseButton, HowToUseFirstLaunch } from '@/components/how-to-use-sheet';
+import LargeTextView, { ViewMode, ViewModeSwitch } from '@/components/large-text-view';
+import OfflineBanner from '@/components/offline-banner';
+import { getLargeTextSize, getOpenInLargeText, LargeTextSize, saveLargeTextSize } from '@/utils/large-text-settings';
+import { logEvent } from '@/utils/metrics';
+import { buildBoxesFromMlKit } from '@/utils/line-context';
+import { checkIsOffline, useIsOffline } from '@/utils/connectivity';
+import { detectFormTypeByKeywords } from '@/utils/classification';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -28,7 +36,10 @@ import ExpoBlurDetector from '../../../modules/expo-blur-detector/src/ExpoBlurDe
 export interface BoundingBoxItem {
   id?: string;
   text: string;
-  sentence?: string;
+  sentence?: string; // the whole text block around the word
+  line?: string; // the single line of text the word is on
+  occurrence?: number; // 0 = first time this word appears on its line
+  group?: number; // same number = same field or phrase (used by the Large text view)
   x: number;
   y: number;
   width: number;
@@ -61,8 +72,23 @@ export default function HomeScreen() {
   const [image, setImage] = useState<{ uri: string; width: number; height: number } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
+
+  const offline = useIsOffline();
   const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
-  const [detectedForm, setDetectedForm] = useState<{type: string, summary: string} | null>(null);
+  const [detectedFormId, setDetectedFormId] = useState<string | null>(null);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("photo");
+  const [textSize, setTextSize] = useState<LargeTextSize>("medium");
+
+  const applyLargeTextPreference = async () => {
+    setViewMode((await getOpenInLargeText()) ? "text" : "photo");
+    setTextSize(await getLargeTextSize());
+  };
+
+  const handleChangeTextSize = (size: LargeTextSize) => {
+    setTextSize(size);
+    saveLargeTextSize(size);
+  };
 
   // Card Layout Dimensions for scaling coordinates
   const [cardLayout, setCardLayout] = useState<{ width: number; height: number }>({
@@ -171,57 +197,14 @@ export default function HomeScreen() {
         } else {
           throw new Error('Desktop OCR failed with status ' + response.status);
         }
-      } else {
         // Process locally with Google ML Kit
         const result = await TextRecognition.recognize(uri);
-
-        result.blocks.forEach((block: any) => {
-          // Create context sentence by concatenating all lines in the block
-          const blockSentence = block.lines
-            ? block.lines.map((l: any) => l.text).join(' ')
-            : block.text;
-
-          if (block.lines) {
-            block.lines.forEach((line: any) => {
-              if (line.elements) {
-                line.elements.forEach((element: any) => {
-                  data.push({
-                    text: element.text,
-                    sentence: blockSentence, // Keep block context for the dictionary LLM
-                    x: element.frame?.left || 0,
-                    y: element.frame?.top || 0,
-                    width: element.frame?.width || 0,
-                    height: element.frame?.height || 0,
-                  });
-                });
-              } else {
-                // Fallback to line level
-                data.push({
-                  text: line.text,
-                  sentence: blockSentence,
-                  x: line.frame?.left || 0,
-                  y: line.frame?.top || 0,
-                  width: line.frame?.width || 0,
-                  height: line.frame?.height || 0,
-                });
-              }
-            });
-          } else {
-            // Fallback to block level
-            data.push({
-              text: block.text,
-              sentence: blockSentence,
-              x: block.frame?.left || 0,
-              y: block.frame?.top || 0,
-              width: block.frame?.width || 0,
-              height: block.frame?.height || 0,
-            });
-          }
-        });
+        data.push(...buildBoxesFromMlKit(result.blocks));
       }
 
       console.log(`✅ Received ${data.length} bounding boxes from OCR!`);
       setBoundingBoxes(data);
+      applyLargeTextPreference();
 
       // Document Classification
       try {
@@ -238,9 +221,8 @@ export default function HomeScreen() {
         // Save to recents in the background with classification title
         saveRecentForm(uri, data, formType).catch(err => console.log('Failed to save to recents', err));
         
-        const summary = getFormSummary(formType);
-        const displayType = formType === "UNKNOWN" ? "Unknown Document" : formType;
-        setDetectedForm({ type: displayType, summary: summary });
+        setDetectedFormId(formType === "UNKNOWN" ? null : formType);
+        logEvent({ event: "scan", detail: formType !== "UNKNOWN" ? formType : undefined });
       } catch (err) {
         // Fallback
         saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));
@@ -256,11 +238,21 @@ export default function HomeScreen() {
     }
   };
 
+  const blockIfOffline = async (): Promise<boolean> => {
+    if (await checkIsOffline()) {
+      Alert.alert(t("offline_title"), t("offline_scan_blocked"));
+      return true;
+    }
+    return false;
+  };
+
   const takePhoto = async () => {
+    if (await blockIfOffline()) return;
     router.push('/camera' as any);
   };
 
   const pickImage = async () => {
+    if (await blockIfOffline()) return;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -293,7 +285,7 @@ export default function HomeScreen() {
     setImage(null);
     setBoundingBoxes([]);
     setSelectedWord(null);
-    setDetectedForm(null);
+    setDetectedFormId(null);
     setIsLoading(false);
 
     // Reset zoom state
@@ -336,8 +328,31 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.previewCardContainer}>
-          <View style={styles.darkCard} onLayout={handleCardLayout}>
+        <View style={styles.chipContainer}>
+          <FormSummaryChip detectedFormId={detectedFormId} />
+        </View>
+
+        <View style={styles.howToRow}>
+          <HowToUseButton section="results" />
+        </View>
+
+        <View style={styles.viewModeRow}>
+          <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
+        </View>
+
+        {viewMode === "text" ? (
+          <View style={styles.previewCardContainer}>
+            <LargeTextView
+              boxes={boundingBoxes}
+              selectedWord={selectedWord}
+              onSelectWord={setSelectedWord}
+              size={textSize}
+              onChangeSize={handleChangeTextSize}
+            />
+          </View>
+        ) : (
+          <View style={styles.previewCardContainer}>
+            <View style={styles.darkCard} onLayout={handleCardLayout}>
             <GestureDetector gesture={composedGesture}>
               <Animated.View style={[StyleSheet.absoluteFill, animatedStyle, { padding: 20, justifyContent: 'center', alignItems: 'center' }]}>
                 <Image source={{ uri: image.uri }} style={styles.documentImage} resizeMode="contain" />
@@ -394,33 +409,17 @@ export default function HomeScreen() {
             </GestureDetector>
           </View>
         </View>
+        )}
 
         {/* Selected Word AI Dictionary Modal */}
         <AiDictionaryModal
           visible={selectedWord !== null}
           wordText={selectedWord ? selectedWord.text : null}
           wordSentence={selectedWord ? selectedWord.sentence : undefined}
+          wordLine={selectedWord ? selectedWord.line : undefined}
+          wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
           onClose={() => setSelectedWord(null)}
         />
-
-        {/* Sidebar Overlay for Form Classification */}
-        {detectedForm && (
-          <Animated.View 
-            style={styles.sidebarContainer}
-            entering={SlideInLeft.duration(400).springify()}
-            exiting={SlideOutLeft.duration(300)}
-          >
-            <TouchableOpacity style={styles.closeSidebarBtn} onPress={() => setDetectedForm(null)}>
-              <Ionicons name="close" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <View style={styles.sidebarContent}>
-              <Ionicons name="document-text" size={36} color="#0A84FF" style={{ marginBottom: 12 }} />
-              <Text style={styles.sidebarTitle}>{detectedForm.type}</Text>
-              <View style={styles.sidebarDivider} />
-              <Text style={styles.sidebarSummary}>{detectedForm.summary}</Text>
-            </View>
-          </Animated.View>
-        )}
       </SafeAreaView>
     );
   }
@@ -428,22 +427,39 @@ export default function HomeScreen() {
   // 3. Default Home State (Take / Pick photo buttons)
   return (
     <SafeAreaView style={styles.container}>
+      <HowToUseFirstLaunch />
+      <OfflineBanner />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={styles.title}>{t('app_title')}</Text>
           <Text style={styles.subtitle}>{t('subtitle')}</Text>
+          <View style={styles.howToHome}>
+            <HowToUseButton variant="pill" />
+          </View>
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.actionButton} onPress={takePhoto}>
+          <TouchableOpacity 
+            style={[styles.actionButton, offline && styles.actionButtonDisabled]} 
+            onPress={takePhoto}
+            disabled={offline}
+          >
             <Ionicons name="camera" size={80} color="white" />
             <Text style={styles.actionButtonText}>{t('btn_take_photo')}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
+          <TouchableOpacity 
+            style={[styles.actionButton, offline && styles.actionButtonDisabled]} 
+            onPress={pickImage}
+            disabled={offline}
+          >
             <Ionicons name="cloud-upload" size={80} color="white" />
             <Text style={styles.actionButtonText}>{t('btn_choose_photo')}</Text>
           </TouchableOpacity>
+
+          {offline && (
+            <Text style={styles.offlineNote}>{t("offline_scan_blocked")}</Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -463,6 +479,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     marginBottom: 40,
+    position: 'relative',
+  },
+  howToHome: {
+    position: 'absolute',
+    top: 40,
+    right: 24,
   },
   title: {
     fontSize: 32,
@@ -493,6 +515,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  actionButtonDisabled: {
+    opacity: 0.35,
+  },
+  offlineNote: {
+    color: "#7A4B00",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    fontWeight: "600",
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
   loadingScreenContainer: {
     flex: 1,
@@ -532,6 +566,18 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     padding: 4,
+  },
+  chipContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+  },
+  howToRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewModeRow: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
   previewCardContainer: {
     flex: 1,

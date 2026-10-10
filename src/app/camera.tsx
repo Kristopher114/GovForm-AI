@@ -1,7 +1,9 @@
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { getOcrSettings } from '@/utils/ocr-settings';
 import { saveRecentForm } from '@/utils/storage';
-import { detectFormTypeByKeywords, getFormSummary } from '@/utils/classification';
+import { detectFormTypeByKeywords } from '@/utils/classification';
+import FormSummaryChip from '@/components/form-summary-sheet';
+import { buildBoxesFromMlKit } from '@/utils/line-context';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -28,6 +30,9 @@ export interface BoundingBoxItem {
   id?: string;
   text: string;
   sentence?: string;
+  line?: string;
+  occurrence?: number;
+  group?: number;
   x: number;      // Original image pixel X
   y: number;      // Original image pixel Y
   width: number;  // Original image pixel width
@@ -46,7 +51,7 @@ export default function CameraOCRScreen() {
   const [loadingMessage, setLoadingMessage] = useState('Processing document with OCR...');
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
   const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
-  const [detectedForm, setDetectedForm] = useState<{type: string, summary: string} | null>(null);
+  const [detectedFormId, setDetectedFormId] = useState<string | null>(null);
 
   // Layout container dimensions for accurate coordinate scaling
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
@@ -205,50 +210,7 @@ export default function CameraOCRScreen() {
       } else {
         // Skip Python Server! Process locally with Google ML Kit.
         const result = await TextRecognition.recognize(manipResult.uri);
-
-        result.blocks.forEach((block: any) => {
-          // Create context sentence by concatenating all lines in the block
-          const blockSentence = block.lines
-            ? block.lines.map((l: any) => l.text).join(' ')
-            : block.text;
-
-          if (block.lines) {
-            block.lines.forEach((line: any) => {
-              if (line.elements) {
-                line.elements.forEach((element: any) => {
-                  data.push({
-                    text: element.text,
-                    sentence: blockSentence, // Keep block context for the dictionary LLM
-                    x: element.frame?.left || 0,
-                    y: element.frame?.top || 0,
-                    width: element.frame?.width || 0,
-                    height: element.frame?.height || 0,
-                  });
-                });
-              } else {
-                // Fallback to line level if elements are missing
-                data.push({
-                  text: line.text,
-                  sentence: blockSentence,
-                  x: line.frame?.left || 0,
-                  y: line.frame?.top || 0,
-                  width: line.frame?.width || 0,
-                  height: line.frame?.height || 0,
-                });
-              }
-            });
-          } else {
-            // Fallback to block level if lines are missing
-            data.push({
-              text: block.text,
-              sentence: blockSentence,
-              x: block.frame?.left || 0,
-              y: block.frame?.top || 0,
-              width: block.frame?.width || 0,
-              height: block.frame?.height || 0,
-            });
-          }
-        });
+        data.push(...buildBoxesFromMlKit(result.blocks));
       }
 
       setBoundingBoxes(data);
@@ -268,9 +230,7 @@ export default function CameraOCRScreen() {
         // Save to recents in the background with classification title
         saveRecentForm(manipResult.uri, data, formType).catch(err => console.log('Failed to save to recents', err));
         
-        const summary = getFormSummary(formType);
-        const displayType = formType === "UNKNOWN" ? "Unknown Document" : formType;
-        setDetectedForm({ type: displayType, summary: summary });
+        setDetectedFormId(formType === "UNKNOWN" ? null : formType);
       } catch (err) {
         // Fallback
         saveRecentForm(manipResult.uri, data).catch(err => console.log('Failed to save to recents', err));
@@ -292,7 +252,7 @@ export default function CameraOCRScreen() {
     setCapturedImage(null);
     setBoundingBoxes([]);
     setSelectedWord(null);
-    setDetectedForm(null);
+    setDetectedFormId(null);
     setIsProcessing(false);
     setIsScannerOpen(false);
     setLoadingMessage('Processing document with OCR...');
@@ -408,27 +368,15 @@ export default function CameraOCRScreen() {
             visible={selectedWord !== null}
             wordText={selectedWord ? selectedWord.text : null}
             wordSentence={selectedWord ? selectedWord.sentence : undefined}
+            wordLine={selectedWord ? selectedWord.line : undefined}
+            wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
             onClose={() => setSelectedWord(null)}
           />
 
-          {/* Sidebar Overlay for Form Classification */}
-          {detectedForm && (
-            <Animated.View 
-              style={styles.sidebarContainer}
-              entering={SlideInLeft.duration(400).springify()}
-              exiting={SlideOutLeft.duration(300)}
-            >
-              <TouchableOpacity style={styles.closeSidebarBtn} onPress={() => setDetectedForm(null)}>
-                <Ionicons name="close" size={24} color="#FFF" />
-              </TouchableOpacity>
-              <View style={styles.sidebarContent}>
-                <Ionicons name="document-text" size={36} color="#0A84FF" style={{ marginBottom: 12 }} />
-                <Text style={styles.sidebarTitle}>{detectedForm.type}</Text>
-                <View style={styles.sidebarDivider} />
-                <Text style={styles.sidebarSummary}>{detectedForm.summary}</Text>
-              </View>
-            </Animated.View>
-          )}
+          {/* Chip and Bottom Sheet */}
+          <View style={styles.chipContainer}>
+            <FormSummaryChip detectedFormId={detectedFormId} />
+          </View>
 
           {/* Processing Spinner Overlay */}
           {isProcessing && (
@@ -499,6 +447,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     zIndex: 10,
+  },
+  chipContainer: {
+    position: 'absolute',
+    top: 90,
+    left: 20,
+    right: 20,
+    zIndex: 20,
+    alignItems: 'center',
   },
   processingOverlay: {
     position: 'absolute',

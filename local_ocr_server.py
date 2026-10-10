@@ -28,13 +28,13 @@ if not os.path.exists(TEMPLATES_DIR):
 template_data = {}
 
 FOLDER_MAPPING = {
-    'birth': 'PSA Application Form for Birth Certificate',
-    'cef': 'COMELEC Voter Registration Form (CEF-1A)',
-    'comelec-transfer': 'COMELEC Application for Transfer of Registration',
-    'death': 'PSA Application Form for Death Certificate',
-    'marriage': 'PSA Application Form for Marriage Certificate',
-    'pmrf': 'PHILHEALTH Member Registration Form (PMRF)',
-    'senior': 'Senior Citizen Registration Form'
+    'birth': 'psa-birth',
+    'cef': 'comelec-cef1',
+    'comelec-transfer': 'comelec-supp',
+    'death': 'psa-death',
+    'marriage': 'psa-marriage',
+    'pmrf': 'philhealth-pmrf',
+    'senior': 'ncsc-octo'
 }
 
 for root, _, files in os.walk(TEMPLATES_DIR):

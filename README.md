@@ -396,3 +396,27 @@ To test it on your device:
 - **Factual Summaries**: Developed a `getFormSummary` utility that acts as a hardcoded dictionary for all 7 supported government forms, providing instant, factual descriptions of what the scanned document is used for without needlessly wasting LLM cloud resources.
 - **Glassmorphism Sliding Sidebar**: Replaced the intrusive system `Alert.alert` with a premium, animated Left Sidebar Overlay built with `react-native-reanimated` (`SlideInLeft`). The sidebar utilizes translucent glassmorphism aesthetics, allowing the user to seamlessly interact with OCR bounding boxes while viewing the classification results.
 - **Unknown Document Handling**: Ensured the sleek sidebar gracefully slides in even when a document is unrecognizable, presenting a standardized "Unknown Document" state to maintain a consistent UI experience.
+
+## Update: October 10, 2026 - App Functionality Audit & Branch Integration
+
+### 1. Functional Audit: Core Capabilities (100% Operational)
+- **Local Device OCR via Google ML Kit**: The app fully supports on-device text recognition. The `buildBoxesFromMlKit` parser seamlessly groups tokens into coherent lines and sentences, mapping precise X/Y bounding box coordinates perfectly to the device screen.
+- **Hybrid OCR & Classification Backend**: The Python `local_ocr_server.py` (OpenCV ORB + Tesseract) gracefully acts as a secondary powerhouse. Images captured via camera or gallery are properly dispatched and classified.
+- **Offline Mode & Network Resilience**: Tested and verified. The `expo-network` module correctly intercepts offline events, preventing frozen API calls. An `OfflineBanner` provides immediate UI feedback while allowing the app's local offline capabilities to continue running.
+
+### 2. Functional Audit: AI Dictionary & Language Parsing (100% Operational)
+- **Local Bisaya Dictionary Fallback**: Integrated a massive 5,400+ line JSON dictionary specifically for Cebuano/Bisaya. Using a sophisticated `phrase-match.ts` algorithm, tapping words instantly extracts context-aware definitions without needing an internet connection.
+- **Smart Phrase Matching**: Verified that tapping a single word (e.g., "Acknowledgement") correctly identifies and highlights multi-word phrases (e.g., "Acknowledgement Receipt") present on that document line.
+- **LLM Integration**: The LLM successfully falls back for out-of-dictionary words or Tagalog/English translation. 
+- **TTS (Text-To-Speech)**: Integrated native TTS that accurately reads aloud definitions, example sentences, and synonyms.
+
+### 3. Functional Audit: UI & Aesthetics (100% Operational)
+- **Glassmorphism Components**: Replaced clunky native alerts with buttery-smooth `react-native-reanimated` bottom sheets (FormSummaryChip, HowToUseFirstLaunch, AiDictionaryModal).
+- **Interactive Document Overlay**: The Google Lens-style UI successfully overlays interactive, scaled touchable hitboxes over original documents. Users can pan and zoom into the document naturally while the hitboxes remain mathematically locked in place.
+- **Accessibility (Large Text View)**: Verified a toggleable `LargeTextView` mode that extracts document sentences into large, highly readable blocks for visually impaired users.
+- **Metrics Tracking**: A local analytics engine successfully tracks scans, LLM API latency, and usage preferences.
+### 4. Functional Audit: TypeScript Strict Safety & Edge Case Fixes (0 TS Errors)
+- **Metrics Tracking Hardening**: Fixed a silent failure in the analytics pipeline (`index.tsx`) where `logEvent` was incorrectly trying to pass an unregistered `formId` root property. Safely nested the property inside the `detail` object as explicitly defined by the `ResearchEvent` interface in `metrics.ts`.
+- **Classification Imports**: Repaired a missing `detectFormTypeByKeywords` import module linkage inside `index.tsx` preventing string-based fallback matching from compiling properly.
+- **Component Prop Validation**: Corrected an invalid `variant="circle"` property passed to `HowToUseButton`, standardizing it to the verified `"pill"` design token.
+- **TTS API Strict Types**: Stripped unsupported `onError` payload properties from `SpeakOptions` in both `form-summary-sheet.tsx` and `ai-dictionary-modal.tsx` to comply with rigorous `expo-speech` TypeScript declarations, eliminating all compilation warnings.

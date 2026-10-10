@@ -1,0 +1,526 @@
+{
+  "_note": "status must be changed from 'draft' to 'approved' for a summary to be shown to normal users. Review sheet: form_summaries_review.md",
+  "forms": [
+    {
+      "id": "psa-birth",
+      "form_name": "PSA Birth Certificate Application Form",
+      "agency": "Philippine Statistics Authority (PSA)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [["bren"], ["birth", "certificate"]],
+      "summary": {
+        "en": {
+          "title": "Birth Certificate Application Form (PSA)",
+          "purpose": "Use this form to ask the Philippine Statistics Authority (PSA) for a copy of a birth certificate.",
+          "who_files": "Anyone of legal age (18 and above) can request. If you are not the person named in the certificate, bring what is needed to show you may request it.",
+          "prepare": [
+            "Your valid government-issued ID",
+            "If you are a representative: your own valid ID and an authorization letter, as the outlet requires",
+            "Details of the person in the certificate: full name, date and place of birth",
+            "The BReN (Birth Reference Number), if you have one"
+          ],
+          "sections": [
+            "Type of request (copy issuance, authentication, viewable online, and others)",
+            "Person's/Child's information",
+            "Purpose of your request (for example claiming benefits or a loan, employment, school, passport or travel)",
+            "Requester's details and signature",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Give it to the PSA outlet where you make your request.",
+          "reminder": "Fill it in using printed letters and write clearly."
+        },
+        "tl": {
+          "title": "Application Form para sa Birth Certificate (PSA)",
+          "purpose": "Gamitin ang form na ito para humingi sa Philippine Statistics Authority (PSA) ng kopya ng birth certificate.",
+          "who_files": "Puwedeng mag-request ang sinumang nasa hustong gulang (18 pataas). Kung hindi ikaw ang nakasulat sa certificate, dalhin ang mga kailangan para mapatunayang puwede kang mag-request.",
+          "prepare": [
+            "Valid government-issued ID mo",
+            "Kung kinatawan ka: sarili mong valid ID at authorization letter, ayon sa hinihingi ng outlet",
+            "Detalye ng taong nasa certificate: buong pangalan, petsa at lugar ng kapanganakan",
+            "BReN (Birth Reference Number), kung mayroon ka"
+          ],
+          "sections": [
+            "Uri ng request (copy issuance, authentication, viewable online, at iba pa)",
+            "Impormasyon ng tao/bata",
+            "Layunin ng request mo (halimbawa: pag-claim ng benefits o loan, trabaho, school, passport o pagbiyahe)",
+            "Detalye ng nagre-request at pirma",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Ibigay ito sa PSA outlet kung saan ka magre-request.",
+          "reminder": "Isulat gamit ang printed letters at siguraduhing malinaw."
+        },
+        "ceb": {
+          "title": "Application Form para sa Birth Certificate (PSA)",
+          "purpose": "Gamiton kini nga form sa pag-request sa Philippine Statistics Authority (PSA) og kopya sa birth certificate.",
+          "who_files": "Si bisan kinsa nga nay igong edad (18 pataas) pwede mo-request. Kung dili ikaw ang naa sa certificate, dad-a ang mga kinahanglan aron mapamatud-an nga pwede ka mo-request.",
+          "prepare": [
+            "Imong valid government-issued ID",
+            "Kung representative ka: imong kaugalingong valid ID ug authorization letter, sumala sa gipangayo sa outlet",
+            "Detalye sa tawo sa certificate: tibuok ngalan, petsa ug lugar nga natawhan",
+            "BReN (Birth Reference Number), kung naa ka"
+          ],
+          "sections": [
+            "Klase sa request (copy issuance, authentication, viewable online, ug uban pa)",
+            "Impormasyon sa tawo/bata",
+            "Rason sa imong request (pananglitan: pag-claim og benefits o loan, trabaho, eskwelahan, passport o pagbiyahe)",
+            "Detalye sa nag-request ug pirma",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Ihatag kini sa PSA outlet diin ka mo-request.",
+          "reminder": "Isulat gamit ang printed letters ug klaro."
+        }
+      }
+    },
+    {
+      "id": "psa-marriage",
+      "form_name": "PSA Marriage Certificate Application Form",
+      "agency": "Philippine Statistics Authority (PSA)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [["mren"], ["marriage", "certificate"]],
+      "summary": {
+        "en": {
+          "title": "Marriage Certificate Application Form (PSA)",
+          "purpose": "Use this form to ask the Philippine Statistics Authority (PSA) for a copy of a marriage certificate.",
+          "who_files": "Anyone of legal age (18 and above) can request. If you are a representative, bring your own valid ID and an authorization letter.",
+          "prepare": [
+            "Your valid government-issued ID",
+            "If you are a representative: your own valid ID and an authorization letter, as the outlet requires",
+            "Details of the marriage: the husband's name, the wife's maiden name, and the date and place of marriage",
+            "The MReN (Marriage Reference Number), if you have one"
+          ],
+          "sections": [
+            "Type of request (copy issuance, authentication, viewable online, and others)",
+            "Marriage certificate details (husband, wife's maiden name, date and place of marriage)",
+            "Purpose of your request (for example claiming benefits, employment, passport or travel)",
+            "Requester's details and signature",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Give it to the PSA outlet where you make your request.",
+          "reminder": "Write the wife's name as it was before the marriage (her maiden name). Fill it in using printed letters."
+        },
+        "tl": {
+          "title": "Application Form para sa Marriage Certificate (PSA)",
+          "purpose": "Gamitin ang form na ito para humingi sa Philippine Statistics Authority (PSA) ng kopya ng marriage certificate.",
+          "who_files": "Puwedeng mag-request ang sinumang nasa hustong gulang (18 pataas). Kung kinatawan ka, dalhin ang sarili mong valid ID at authorization letter.",
+          "prepare": [
+            "Valid government-issued ID mo",
+            "Kung kinatawan ka: sarili mong valid ID at authorization letter, ayon sa hinihingi ng outlet",
+            "Detalye ng kasal: pangalan ng mister, pangalan ng misis noong dalaga pa siya (maiden name), at petsa at lugar ng kasal",
+            "MReN (Marriage Reference Number), kung mayroon ka"
+          ],
+          "sections": [
+            "Uri ng request (copy issuance, authentication, viewable online, at iba pa)",
+            "Detalye ng marriage certificate (mister, maiden name ng misis, petsa at lugar ng kasal)",
+            "Layunin ng request mo (halimbawa: pag-claim ng benefits, trabaho, passport o pagbiyahe)",
+            "Detalye ng nagre-request at pirma",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Ibigay ito sa PSA outlet kung saan ka magre-request.",
+          "reminder": "Isulat ang pangalan ng misis noong dalaga pa siya (maiden name). Isulat gamit ang printed letters."
+        },
+        "ceb": {
+          "title": "Application Form para sa Marriage Certificate (PSA)",
+          "purpose": "Gamiton kini nga form sa pag-request sa Philippine Statistics Authority (PSA) og kopya sa marriage certificate.",
+          "who_files": "Si bisan kinsa nga nay igong edad (18 pataas) pwede mo-request. Kung representative ka, dad-a ang imong kaugalingong valid ID ug authorization letter.",
+          "prepare": [
+            "Imong valid government-issued ID",
+            "Kung representative ka: imong kaugalingong valid ID ug authorization letter, sumala sa gipangayo sa outlet",
+            "Detalye sa kasal: ngalan sa bana, ngalan sa asawa kaniadto nga dalaga pa siya (maiden name), ug petsa ug lugar sa kasal",
+            "MReN (Marriage Reference Number), kung naa ka"
+          ],
+          "sections": [
+            "Klase sa request (copy issuance, authentication, viewable online, ug uban pa)",
+            "Detalye sa marriage certificate (bana, maiden name sa asawa, petsa ug lugar sa kasal)",
+            "Rason sa imong request (pananglitan: pag-claim og benefits, trabaho, passport o pagbiyahe)",
+            "Detalye sa nag-request ug pirma",
+            "Privacy notice"
+          ],
+          "where_to_submit": "Ihatag kini sa PSA outlet diin ka mo-request.",
+          "reminder": "Isulat ang ngalan sa asawa kaniadto nga dalaga pa siya (maiden name). Isulat gamit ang printed letters."
+        }
+      }
+    },
+    {
+      "id": "psa-death",
+      "form_name": "PSA Death Certificate Application Form",
+      "agency": "Philippine Statistics Authority (PSA)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [["dren"], ["death", "certificate"]],
+      "summary": {
+        "en": {
+          "title": "Death Certificate Application Form (PSA)",
+          "purpose": "Use this form to ask the Philippine Statistics Authority (PSA) for a copy of a death certificate.",
+          "who_files": "Anyone of legal age (18 and above) can request. If you are a representative, bring your own valid ID and an authorization letter.",
+          "prepare": [
+            "Your valid government-issued ID",
+            "If you are a representative: your own valid ID and an authorization letter, as the outlet requires",
+            "Details of the person who died: full name, date and place of death",
+            "The DReN (Death Reference Number), if you have one"
+          ],
+          "sections": [
+            "Type of request (copy issuance, authentication, viewable online, and others)",
+            "Deceased's information",
+            "Death certificate details",
+            "Purpose of your request (for example claiming benefits or a loan, employment, school, passport or travel)",
+            "Requester's details and signature"
+          ],
+          "where_to_submit": "Give it to the PSA outlet where you make your request.",
+          "reminder": "Fill it in using printed letters and write clearly."
+        },
+        "tl": {
+          "title": "Application Form para sa Death Certificate (PSA)",
+          "purpose": "Gamitin ang form na ito para humingi sa Philippine Statistics Authority (PSA) ng kopya ng death certificate.",
+          "who_files": "Puwedeng mag-request ang sinumang nasa hustong gulang (18 pataas). Kung kinatawan ka, dalhin ang sarili mong valid ID at authorization letter.",
+          "prepare": [
+            "Valid government-issued ID mo",
+            "Kung kinatawan ka: sarili mong valid ID at authorization letter, ayon sa hinihingi ng outlet",
+            "Detalye ng namatay: buong pangalan, petsa at lugar ng pagkamatay",
+            "DReN (Death Reference Number), kung mayroon ka"
+          ],
+          "sections": [
+            "Uri ng request (copy issuance, authentication, viewable online, at iba pa)",
+            "Impormasyon ng namatay",
+            "Detalye ng death certificate",
+            "Layunin ng request mo (halimbawa: pag-claim ng benefits o loan, trabaho, school, passport o pagbiyahe)",
+            "Detalye ng nagre-request at pirma"
+          ],
+          "where_to_submit": "Ibigay ito sa PSA outlet kung saan ka magre-request.",
+          "reminder": "Isulat gamit ang printed letters at siguraduhing malinaw."
+        },
+        "ceb": {
+          "title": "Application Form para sa Death Certificate (PSA)",
+          "purpose": "Gamiton kini nga form sa pag-request sa Philippine Statistics Authority (PSA) og kopya sa death certificate.",
+          "who_files": "Si bisan kinsa nga nay igong edad (18 pataas) pwede mo-request. Kung representative ka, dad-a ang imong kaugalingong valid ID ug authorization letter.",
+          "prepare": [
+            "Imong valid government-issued ID",
+            "Kung representative ka: imong kaugalingong valid ID ug authorization letter, sumala sa gipangayo sa outlet",
+            "Detalye sa namatay: tibuok ngalan, petsa ug lugar sa pagkamatay",
+            "DReN (Death Reference Number), kung naa ka"
+          ],
+          "sections": [
+            "Klase sa request (copy issuance, authentication, viewable online, ug uban pa)",
+            "Impormasyon sa namatay",
+            "Detalye sa death certificate",
+            "Rason sa imong request (pananglitan: pag-claim og benefits o loan, trabaho, eskwelahan, passport o pagbiyahe)",
+            "Detalye sa nag-request ug pirma"
+          ],
+          "where_to_submit": "Ihatag kini sa PSA outlet diin ka mo-request.",
+          "reminder": "Isulat gamit ang printed letters ug klaro."
+        }
+      }
+    },
+    {
+      "id": "comelec-cef1",
+      "form_name": "COMELEC Application for Voter Registration (CEF-1 Revised 2026)",
+      "agency": "Commission on Elections (COMELEC)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [
+        ["cef", "1"],
+        ["registration", "record"]
+      ],
+      "summary": {
+        "en": {
+          "title": "Voter Registration Form (COMELEC CEF-1)",
+          "purpose": "This is COMELEC's voter application form. Use it to register as a voter, or to transfer, reactivate, change your name or correct your record, update your signature or photo, or ask to be included or reinstated in the list of voters.",
+          "who_files": "Filipino citizens who want to register or change their voter record. Registration is for ages 18 and above; ages 15 to 17 sign a separate oath for the Katipunan ng Kabataan.",
+          "prepare": [
+            "A valid government-issued ID",
+            "Your personal details: full name, date and place of birth, address, and how long you have lived there",
+            "For a transfer or reactivation: your existing voter details, such as your precinct number if you know it",
+            "For a change of name or a correction: the supporting document the form asks for, such as a court order"
+          ],
+          "sections": [
+            "Type of application: registration, transfer, reactivation, change of name or correction, updating, or inclusion/reinstatement",
+            "Part 1: your personal information",
+            "Help you may need if you are an indigenous person, cannot read or write, or have a disability",
+            "Oath, notice and consent, then your signature and thumbmarks",
+            "Part 4: for the Election Officer only"
+          ],
+          "where_to_submit": "Submit it to the Office of the Election Officer (OEO) of your city or municipality.",
+          "reminder": "Fill it in completely and write clearly. Tick only the type of application that fits you."
+        },
+        "tl": {
+          "title": "Voter Registration Form (COMELEC CEF-1)",
+          "purpose": "Ito ang application form ng COMELEC para sa mga botante. Gamitin ito para magparehistro bilang botante, o para mag-transfer, mag-reactivate, magpalit ng pangalan o magtama ng record, mag-update ng pirma o litrato, o hilingin na maisama o maibalik ang pangalan mo sa listahan ng mga botante.",
+          "who_files": "Mga Pilipinong gustong magparehistro o magbago ng voter record. Ang pagpaparehistro ay para sa edad 18 pataas; ang edad 15 hanggang 17 ay pipirma sa hiwalay na panunumpa para sa Katipunan ng Kabataan.",
+          "prepare": [
+            "Valid government-issued ID",
+            "Personal na detalye mo: buong pangalan, petsa at lugar ng kapanganakan, address, at kung gaano ka na katagal nakatira doon",
+            "Para sa transfer o reactivation: ang kasalukuyan mong voter details, tulad ng precinct number kung alam mo",
+            "Para sa pagpapalit ng pangalan o pagtatama: ang supporting document na hinihingi ng form, tulad ng court order"
+          ],
+          "sections": [
+            "Uri ng application: pagpaparehistro, transfer, reactivation, pagpapalit ng pangalan o pagtatama, updating, o inclusion/reinstatement",
+            "Part 1: ang personal information mo",
+            "Tulong na maaaring kailangan mo kung ikaw ay katutubo, hindi nakakabasa o nakakasulat, o may kapansanan",
+            "Oath, notice at consent, saka ang pirma at thumbmarks mo",
+            "Part 4: para lang sa Election Officer"
+          ],
+          "where_to_submit": "Ibigay ito sa Office of the Election Officer (OEO) ng lungsod o bayan mo.",
+          "reminder": "Punan nang buo at isulat nang malinaw. I-tick lang ang uri ng application na akma sa iyo."
+        },
+        "ceb": {
+          "title": "Voter Registration Form (COMELEC CEF-1)",
+          "purpose": "Kini ang application form sa COMELEC para sa mga botante. Gamiton kini sa pag-rehistro isip botante, o sa pag-transfer, pag-reactivate, pag-usab sa ngalan o pagtul-id sa record, pag-update sa pirma o litrato, o pag-hangyo nga maapil o mabalik ang imong ngalan sa lista sa mga botante.",
+          "who_files": "Mga Pilipino nga gustong mo-rehistro o mag-usab sa ilang voter record. Ang pag-rehistro kay para sa edad 18 pataas; ang edad 15 hangtod 17 mopirma sa lahi nga panumpa para sa Katipunan ng Kabataan.",
+          "prepare": [
+            "Valid government-issued ID",
+            "Imong personal nga detalye: tibuok ngalan, petsa ug lugar nga natawhan, address, ug kapila na ka tuig o bulan ka nagpuyo didto",
+            "Para sa transfer o reactivation: imong karon nga voter details, sama sa precinct number kung nahibalo ka",
+            "Para sa pag-usab sa ngalan o pagtul-id: ang supporting document nga gipangayo sa form, sama sa court order"
+          ],
+          "sections": [
+            "Klase sa application: pag-rehistro, transfer, reactivation, pag-usab sa ngalan o pagtul-id, updating, o inclusion/reinstatement",
+            "Part 1: imong personal information",
+            "Tabang nga mahimong kinahanglan nimo kung ikaw usa ka katawhang lumad, dili kabasa o kasulat, o naay kakulangon sa lawas",
+            "Oath, notice ug consent, dayon imong pirma ug thumbmarks",
+            "Part 4: para lang sa Election Officer"
+          ],
+          "where_to_submit": "Ihatag kini sa Office of the Election Officer (OEO) sa imong siyudad o lungsod.",
+          "reminder": "Pun-a ug tibuok ug isulat nga klaro. I-tick lang ang klase sa application nga mohaum nimo."
+        }
+      }
+    },
+    {
+      "id": "comelec-supp",
+      "form_name": "COMELEC Supplementary/Updating of Data Form",
+      "agency": "Commission on Elections (COMELEC)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [
+        ["accessible", "polling", "place"],
+        ["supplementary"],
+        ["assistor"]
+      ],
+      "summary": {
+        "en": {
+          "title": "Supplementary / Updating of Data Form (COMELEC)",
+          "purpose": "Use this form to tell COMELEC about your type of disability and the help you need on election day, and whether you are willing to vote at an Accessible Polling Place. It also updates your record if you are a person with disability, a senior citizen, or an indigenous person.",
+          "who_files": "Registered voters who are persons with disability, senior citizens or indigenous people, and voters who need help, including those who cannot read or write. An Assistor can help you fill it in.",
+          "prepare": [
+            "Your voter details, such as your name and precinct number if you know it",
+            "Your type of disability and the help you need (communication help, visual help, or none)",
+            "The name of your indigenous community, if you belong to one",
+            "Your Assistor, if you need one: the Assistor fills in a certification on the form"
+          ],
+          "sections": [
+            "Applicant's information",
+            "Type of disability",
+            "Type of assistance needed on election day",
+            "Membership in an Indigenous Cultural Community",
+            "Are you willing to vote at an Accessible Polling Place (YES/NO)",
+            "Signature or thumbmark of the applicant, and the Assistor's certification"
+          ],
+          "where_to_submit": "Submit it to the Office of the Election Officer or a COMELEC registration site.",
+          "reminder": "Tick every box that applies to you. The Assistor completes the certification part."
+        },
+        "tl": {
+          "title": "Supplementary / Updating of Data Form (COMELEC)",
+          "purpose": "Gamitin ang form na ito para sabihin sa COMELEC ang uri ng kapansanan mo at ang tulong na kailangan mo sa araw ng halalan, at kung handa kang bumoto sa Accessible Polling Place. Ina-update din nito ang record mo kung ikaw ay person with disability, senior citizen, o katutubo.",
+          "who_files": "Mga rehistradong botante na person with disability, senior citizen o katutubo, at mga botanteng nangangailangan ng tulong, kasama ang hindi nakakabasa o nakakasulat. Puwedeng tumulong ang isang Assistor sa pagpuno nito.",
+          "prepare": [
+            "Voter details mo, tulad ng pangalan at precinct number kung alam mo",
+            "Uri ng kapansanan mo at ang tulong na kailangan mo (tulong sa komunikasyon, tulong sa paningin, o wala)",
+            "Pangalan ng katutubong komunidad mo, kung kabilang ka sa isa",
+            "Ang Assistor mo, kung kailangan mo: ang Assistor ang pupuno ng certification sa form"
+          ],
+          "sections": [
+            "Impormasyon ng aplikante",
+            "Uri ng kapansanan",
+            "Uri ng tulong na kailangan sa araw ng halalan",
+            "Pagiging miyembro ng Indigenous Cultural Community",
+            "Handa ka bang bumoto sa Accessible Polling Place (YES/NO)",
+            "Pirma o thumbmark ng aplikante, at ang certification ng Assistor"
+          ],
+          "where_to_submit": "Ibigay ito sa Office of the Election Officer o sa isang registration site ng COMELEC.",
+          "reminder": "I-tick ang lahat ng kahon na akma sa iyo. Ang Assistor ang pupuno sa bahagi ng certification."
+        },
+        "ceb": {
+          "title": "Supplementary / Updating of Data Form (COMELEC)",
+          "purpose": "Gamiton kini nga form sa pagsulti sa COMELEC sa klase sa imong kakulangon sa lawas ug sa tabang nga kinahanglan nimo sa adlaw sa eleksyon, ug kung andam ka ba nga moboto sa Accessible Polling Place. I-update usab niini ang imong record kung ikaw usa ka person with disability, senior citizen, o katawhang lumad.",
+          "who_files": "Mga rehistradong botante nga person with disability, senior citizen o katawhang lumad, ug mga botante nga nanginahanglan og tabang, apil ang dili kabasa o kasulat. Makatabang ang usa ka Assistor sa pagpuno niini.",
+          "prepare": [
+            "Imong voter details, sama sa ngalan ug precinct number kung nahibalo ka",
+            "Klase sa imong kakulangon sa lawas ug ang tabang nga kinahanglan nimo (tabang sa komunikasyon, tabang sa panan-aw, o wala)",
+            "Ngalan sa imong komunidad nga lumad, kung kauban ka sa usa",
+            "Imong Assistor, kung kinahanglan nimo: ang Assistor ang mopuno sa certification sa form"
+          ],
+          "sections": [
+            "Impormasyon sa aplikante",
+            "Klase sa kakulangon sa lawas",
+            "Klase sa tabang nga kinahanglan sa adlaw sa eleksyon",
+            "Pagkamiyembro sa Indigenous Cultural Community",
+            "Andam ka ba nga moboto sa Accessible Polling Place (YES/NO)",
+            "Pirma o thumbmark sa aplikante, ug ang certification sa Assistor"
+          ],
+          "where_to_submit": "Ihatag kini sa Office of the Election Officer o sa registration site sa COMELEC.",
+          "reminder": "I-tick ang tanang kahon nga mohaum nimo. Ang Assistor ang mopuno sa bahin sa certification."
+        }
+      }
+    },
+    {
+      "id": "philhealth-pmrf",
+      "form_name": "PhilHealth Member Registration Form (PMRF)",
+      "agency": "PhilHealth",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [
+        ["pmrf"],
+        ["philhealth", "member", "registration"],
+        ["declaration", "dependents"]
+      ],
+      "summary": {
+        "en": {
+          "title": "PhilHealth Member Registration Form (PMRF)",
+          "purpose": "Use this form to register as a PhilHealth member and get your PhilHealth Identification Number (PIN), or to update or correct your member record.",
+          "who_files": "People joining PhilHealth for the first time, and existing members who need to update or correct their information.",
+          "prepare": [
+            "A valid proof of identity if you are registering for the first time",
+            "Your full name as it appears in your birth certificate",
+            "Details of your spouse and dependents, if you will declare any",
+            "Supporting documents if you are updating dependents or correcting your record, such as a birth certificate",
+            "Proof of income, if it applies to your member type"
+          ],
+          "sections": [
+            "Purpose: Registration or Updating/Amendment",
+            "I. Personal details",
+            "II. Address and contact details",
+            "III. Declaration of dependents",
+            "IV. Member type (for example employed, self-earning, senior citizen, person with disability)",
+            "V. Updating/Amendment, if you are changing your record",
+            "Signature over printed name (or right thumbmark if you cannot write) and date"
+          ],
+          "where_to_submit": "Submit it to the nearest PhilHealth office.",
+          "reminder": "Your PIN is your unique and permanent number. Always use it in your PhilHealth transactions."
+        },
+        "tl": {
+          "title": "PhilHealth Member Registration Form (PMRF)",
+          "purpose": "Gamitin ang form na ito para magparehistro bilang PhilHealth member at makuha ang PhilHealth Identification Number (PIN) mo, o para i-update o itama ang member record mo.",
+          "who_files": "Mga taong sasali sa PhilHealth sa unang pagkakataon, at mga kasalukuyang member na kailangang mag-update o magtama ng impormasyon.",
+          "prepare": [
+            "Valid proof of identity kung unang beses kang magpaparehistro",
+            "Buong pangalan mo ayon sa nakasulat sa birth certificate mo",
+            "Detalye ng asawa at mga dependents mo, kung may ido-declare ka",
+            "Supporting documents kung nag-a-update ka ng dependents o nagtatama ng record, tulad ng birth certificate",
+            "Proof of income, kung kasama ito sa member type mo"
+          ],
+          "sections": [
+            "Purpose: Registration o Updating/Amendment",
+            "I. Personal details",
+            "II. Address at contact details",
+            "III. Declaration of dependents",
+            "IV. Member type (halimbawa: employed, self-earning, senior citizen, person with disability)",
+            "V. Updating/Amendment, kung nagbabago ka ng record",
+            "Pirma sa ibabaw ng printed name (o right thumbmark kung hindi ka makasulat) at petsa"
+          ],
+          "where_to_submit": "Ibigay ito sa pinakamalapit na PhilHealth office.",
+          "reminder": "Ang PIN mo ay natatangi at permanenteng numero. Gamitin ito palagi sa mga transaksyon mo sa PhilHealth."
+        },
+        "ceb": {
+          "title": "PhilHealth Member Registration Form (PMRF)",
+          "purpose": "Gamiton kini nga form sa pag-rehistro isip PhilHealth member ug pagkuha sa imong PhilHealth Identification Number (PIN), o sa pag-update o pagtul-id sa imong member record.",
+          "who_files": "Mga tawo nga mo-apil sa PhilHealth sa unang higayon, ug mga karon nga member nga kinahanglang mag-update o magtul-id sa ilang impormasyon.",
+          "prepare": [
+            "Valid proof of identity kung una ka nga mo-rehistro",
+            "Imong tibuok ngalan sumala sa gisulat sa imong birth certificate",
+            "Detalye sa imong asawa ug mga dependents, kung naa kay i-declare",
+            "Supporting documents kung nag-update ka sa dependents o nagtul-id sa record, sama sa birth certificate",
+            "Proof of income, kung apil kini sa imong member type"
+          ],
+          "sections": [
+            "Purpose: Registration o Updating/Amendment",
+            "I. Personal details",
+            "II. Address ug contact details",
+            "III. Declaration of dependents",
+            "IV. Member type (pananglitan: employed, self-earning, senior citizen, person with disability)",
+            "V. Updating/Amendment, kung giusab nimo ang imong record",
+            "Pirma sa ibabaw sa printed name (o right thumbmark kung dili ka kasulat) ug petsa"
+          ],
+          "where_to_submit": "Ihatag kini sa pinakaduol nga PhilHealth office.",
+          "reminder": "Ang imong PIN kay talagsaon ug permanente nga numero. Gamita kini kanunay sa imong mga transaksyon sa PhilHealth."
+        }
+      }
+    },
+    {
+      "id": "ncsc-octo",
+      "form_name": "NCSC Application Form - Octogenarian, Nonagenarian and Centenarian Benefit Program",
+      "agency": "National Commission of Senior Citizens (NCSC)",
+      "status": "draft",
+      "last_checked": "2026-10-04",
+      "cues": [
+        ["octogenarian"],
+        ["nonagenarian"],
+        ["centenarian"],
+        ["milestone", "age"]
+      ],
+      "summary": {
+        "en": {
+          "title": "Octogenarian, Nonagenarian and Centenarian Benefit Application (NCSC)",
+          "purpose": "Use this form to claim the cash benefit under Republic Act 11982 for senior citizens who reach the milestone ages of 80, 85, 90, 95 and 100.",
+          "who_files": "Filipino senior citizens who reached a milestone age, whether they live in the Philippines or abroad. An authorized representative can apply for them.",
+          "prepare": [
+            "A primary document, such as a PSA Certificate of Live Birth, a Philippine Identification (PhilSys) ID, or a valid Philippine passport",
+            "A recent 2x2 ID picture, and a full-body picture if the form asks for it",
+            "Names of your children and your designated beneficiary",
+            "If you live abroad: the extra documents listed in the form's requirements section"
+          ],
+          "sections": [
+            "Your NCSC registration reference number (RRN) and OSCA ID number",
+            "A. Personal information",
+            "B. Family information (children and authorized representatives)",
+            "C. Contact information and D. Designated beneficiary",
+            "E. How you plan to use the cash gift",
+            "F. Certification under oath, with your signature or thumbmark"
+          ],
+          "where_to_submit": "Apply through your local Office for Senior Citizens Affairs (OSCA) or the National Commission of Senior Citizens (NCSC).",
+          "reminder": "Fill it in completely and correctly. The form is not for sale. The cash gift has to be claimed within one year of reaching the milestone age."
+        },
+        "tl": {
+          "title": "Application Form para sa Octogenarian, Nonagenarian at Centenarian Benefit (NCSC)",
+          "purpose": "Gamitin ang form na ito para i-claim ang cash benefit sa ilalim ng Republic Act 11982 para sa mga senior citizen na umabot sa milestone age na 80, 85, 90, 95 at 100.",
+          "who_files": "Mga Pilipinong senior citizen na umabot sa milestone age, nakatira man sa Pilipinas o sa ibang bansa. Puwedeng mag-apply para sa kanila ang isang authorized representative.",
+          "prepare": [
+            "Primary document, tulad ng PSA Certificate of Live Birth, Philippine Identification (PhilSys) ID, o valid na Philippine passport",
+            "Bagong 2x2 ID picture, at full-body picture kung hinihingi ng form",
+            "Mga pangalan ng mga anak mo at ng designated beneficiary mo",
+            "Kung nakatira ka sa ibang bansa: ang mga karagdagang dokumentong nakalista sa requirements section ng form"
+          ],
+          "sections": [
+            "NCSC registration reference number (RRN) at OSCA ID number mo",
+            "A. Personal information",
+            "B. Family information (mga anak at authorized representatives)",
+            "C. Contact information at D. Designated beneficiary",
+            "E. Paano mo balak gamitin ang cash gift",
+            "F. Certification sa ilalim ng panunumpa, may pirma o thumbmark mo"
+          ],
+          "where_to_submit": "Mag-apply sa lokal mong Office for Senior Citizens Affairs (OSCA) o sa National Commission of Senior Citizens (NCSC).",
+          "reminder": "Punan nang buo at tama. Hindi ibinebenta ang form na ito. Dapat i-claim ang cash gift sa loob ng isang taon pagkaabot ng milestone age."
+        },
+        "ceb": {
+          "title": "Application Form para sa Octogenarian, Nonagenarian ug Centenarian Benefit (NCSC)",
+          "purpose": "Gamiton kini nga form sa pag-claim sa cash benefit ubos sa Republic Act 11982 para sa mga senior citizen nga nakaabot sa milestone age nga 80, 85, 90, 95 ug 100.",
+          "who_files": "Mga Pilipino nga senior citizen nga nakaabot sa milestone age, nagpuyo man sa Pilipinas o sa gawas sa nasud. Pwede mo-apply para nila ang usa ka authorized representative.",
+          "prepare": [
+            "Primary document, sama sa PSA Certificate of Live Birth, Philippine Identification (PhilSys) ID, o valid nga Philippine passport",
+            "Bag-o nga 2x2 ID picture, ug full-body picture kung gipangayo sa form",
+            "Mga ngalan sa imong mga anak ug sa imong designated beneficiary",
+            "Kung nagpuyo ka sa gawas sa nasud: ang dugang nga mga dokumento nga gilista sa requirements section sa form"
+          ],
+          "sections": [
+            "Imong NCSC registration reference number (RRN) ug OSCA ID number",
+            "A. Personal information",
+            "B. Family information (mga anak ug authorized representatives)",
+            "C. Contact information ug D. Designated beneficiary",
+            "E. Unsaon nimo paggamit ang cash gift",
+            "F. Certification ubos sa panumpa, nga naay imong pirma o thumbmark"
+          ],
+          "where_to_submit": "Mo-apply sa imong lokal nga Office for Senior Citizens Affairs (OSCA) o sa National Commission of Senior Citizens (NCSC).",
+          "reminder": "Pun-a ug tibuok ug husto. Dili ibaligya kini nga form. Kinahanglang i-claim ang cash gift sulod sa usa ka tuig human maabot ang milestone age."
+        }
+      }
+    }
+  ]
+}
