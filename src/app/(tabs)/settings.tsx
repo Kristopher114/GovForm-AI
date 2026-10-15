@@ -212,22 +212,22 @@ export default function SettingsScreen() {
 
         {ocrMode === "desktop" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Desktop IP Address</Text>
+            <Text style={styles.sectionTitle}>Desktop Server / Tunnel URL</Text>
             <View style={styles.card}>
               <TextInput
                 style={styles.textInput}
                 value={desktopIp}
                 onChangeText={handleIpChange}
-                placeholder="e.g. 192.168.137.1"
+                placeholder="e.g. https://...trycloudflare.com or 192.168.1.3"
                 placeholderTextColor="#999"
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="decimal-pad"
+                keyboardType="url"
               />
             </View>
             <Text style={styles.helperText}>
-              Ensure your computer is running the local_ocr_server.py script and
-              your phone is on the same network or mobile hotspot.
+              Enter your Cloudflare tunnel URL or local IP address. Ensure
+              local_ocr_server.py is running on your computer.
             </Text>
           </View>
         )}

@@ -530,7 +530,7 @@ export default function AiDictionaryModal({
           {isLlmLoading && (
             <View style={styles.llmLoadingContainer}>
               <ActivityIndicator size="large" color="#2182DE" />
-              <Text style={styles.loadingText}>Asking Gemini Flash 3.6...</Text>
+              <Text style={styles.loadingText}>Generating definition with AI...</Text>
             </View>
           )}
 

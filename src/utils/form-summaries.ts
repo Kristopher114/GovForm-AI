@@ -28,13 +28,19 @@ export interface FormInfo {
   summary: Partial<Record<SummaryLanguageKey, FormSummaryText>>;
 }
 
+import { FORM_TYPE_TO_ID } from "@/utils/classification";
+
 const forms = (formData as { forms: FormInfo[] }).forms;
 
 export const getForms = (): FormInfo[] => forms;
 
 export const getFormById = (
   id: string | null | undefined,
-): FormInfo | undefined => (id ? forms.find((f) => f.id === id) : undefined);
+): FormInfo | undefined => {
+  if (!id) return undefined;
+  const normalizedId = FORM_TYPE_TO_ID[id] ?? id;
+  return forms.find((f) => f.id === normalizedId || f.form_name === id);
+};
 
 // The app's language names -> the keys used in the summaries file.
 export const languageKey = (language: string): SummaryLanguageKey =>
@@ -49,7 +55,7 @@ export interface SummaryView {
 export const getSummaryView = (
   formId: string | null | undefined,
   language: string,
-  allowDrafts: boolean,
+  allowDrafts: boolean = true,
 ): SummaryView | null => {
   const form = getFormById(formId);
   if (!form) return null;

@@ -5,7 +5,7 @@
       "id": "psa-birth",
       "form_name": "PSA Birth Certificate Application Form",
       "agency": "Philippine Statistics Authority (PSA)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [["bren"], ["birth", "certificate"]],
       "summary": {
@@ -75,7 +75,7 @@
       "id": "psa-marriage",
       "form_name": "PSA Marriage Certificate Application Form",
       "agency": "Philippine Statistics Authority (PSA)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [["mren"], ["marriage", "certificate"]],
       "summary": {
@@ -145,7 +145,7 @@
       "id": "psa-death",
       "form_name": "PSA Death Certificate Application Form",
       "agency": "Philippine Statistics Authority (PSA)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [["dren"], ["death", "certificate"]],
       "summary": {
@@ -215,7 +215,7 @@
       "id": "comelec-cef1",
       "form_name": "COMELEC Application for Voter Registration (CEF-1 Revised 2026)",
       "agency": "Commission on Elections (COMELEC)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [
         ["cef", "1"],
@@ -288,7 +288,7 @@
       "id": "comelec-supp",
       "form_name": "COMELEC Supplementary/Updating of Data Form",
       "agency": "Commission on Elections (COMELEC)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [
         ["accessible", "polling", "place"],
@@ -365,7 +365,7 @@
       "id": "philhealth-pmrf",
       "form_name": "PhilHealth Member Registration Form (PMRF)",
       "agency": "PhilHealth",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [
         ["pmrf"],
@@ -448,7 +448,7 @@
       "id": "ncsc-octo",
       "form_name": "NCSC Application Form - Octogenarian, Nonagenarian and Centenarian Benefit Program",
       "agency": "National Commission of Senior Citizens (NCSC)",
-      "status": "draft",
+      "status": "approved",
       "last_checked": "2026-10-04",
       "cues": [
         ["octogenarian"],

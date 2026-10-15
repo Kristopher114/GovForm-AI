@@ -1,12 +1,20 @@
 import uvicorn
 from fastapi import FastAPI, UploadFile, File
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import os
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np
+
+# Point to Tesseract based on the Operating System
+if os.name == 'nt' and os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe"):
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+base_dir = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
+if "TESSDATA_PREFIX" not in os.environ:
+    os.environ["TESSDATA_PREFIX"] = base_dir
 
 app = FastAPI()
 
@@ -59,12 +67,55 @@ for root, _, files in os.walk(TEMPLATES_DIR):
 
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
-def detect_form_visually(image_pil):
+
+def preprocess_for_ocr(image_pil: Image.Image):
+    """
+    OpenCV preprocessing pipeline optimized for physical paper captures:
+    1. EXIF auto-rotation to align pixel axes with physical perspective.
+    2. Background illumination division to eliminate shadows, uneven desk lighting, and paper yellowing.
+    3. CLAHE (Contrast Limited Adaptive Histogram Equalization) to amplify faint ink & dot-matrix text.
+    4. Gaussian smoothing (3x3) to remove high-frequency camera sensor noise.
+    
+    Returns:
+        preprocessed_cv (numpy.ndarray): Clean grayscale image ready for Tesseract OCR.
+        normalized_pil (Image.Image): Transposed PIL Image for downstream tasks.
+    """
+    # 1. EXIF auto-rotation
+    image_transposed = ImageOps.exif_transpose(image_pil)
+    
+    # 2. Convert to OpenCV grayscale
+    img_rgb = np.array(image_transposed.convert('RGB'))
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+    
+    # 3. Morphological background illumination division (Shadow / Gradient removal)
+    # Proportional kernel size (approx 1/40th of max dimension, minimum 21 pixels)
+    k_size = max(21, int(max(gray.shape) / 40))
+    if k_size % 2 == 0:
+        k_size += 1
+        
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
+    # Morphological closing creates an accurate estimate of the background illumination plane
+    bg = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+    
+    # Division normalization: img / bg * 255
+    # Pixels where ink is present stay dark; paper background becomes pure 255 white everywhere
+    norm = np.clip((gray.astype(np.float32) / (bg.astype(np.float32) + 1e-5)) * 255.0, 0, 255).astype(np.uint8)
+    
+    # 4. CLAHE for contrast enhancement
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(norm)
+    
+    # 5. Gaussian blur (3x3) to eliminate paper grain & sensor speckles
+    preprocessed_cv = cv2.GaussianBlur(enhanced, (3, 3), 0)
+    
+    return preprocessed_cv, image_transposed
+
+
+def detect_form_visually(image_cv_gray):
     if not template_data:
         return "UNKNOWN"
         
-    img_cv = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2GRAY)
-    kp_img, des_img = orb.detectAndCompute(img_cv, None)
+    kp_img, des_img = orb.detectAndCompute(image_cv_gray, None)
     
     if des_img is None:
         return "UNKNOWN"
@@ -97,26 +148,46 @@ def detect_form_visually(image_pil):
 async def predict(file: UploadFile = File(...)):
     print(f"Received image: {file.filename}")
     contents = await file.read()
-    image = Image.open(io.BytesIO(contents)).convert('RGB')
+    raw_image = Image.open(io.BytesIO(contents)).convert('RGB')
     
-    # 1. Visual Form Detection (OpenCV)
-    form_type = detect_form_visually(image)
+    # Run OpenCV document preprocessing pipeline (removes shadows, equalizes contrast)
+    preprocessed_img, clean_pil = preprocess_for_ocr(raw_image)
+    
+    # 1. Visual Form Detection (OpenCV with shadow-normalized image)
+    form_type = detect_form_visually(preprocessed_img)
     print(f"Visual classification result: {form_type}")
     
-    # Run Tesseract with custom model
-    # Note: Make sure myformmodel.traineddata is in your Tesseract tessdata folder!
-    try:
-        data = pytesseract.image_to_data(image, lang='myformmodel', output_type=pytesseract.Output.DICT)
-        print("OCR successful!")
-    except Exception as e:
-        print(f"OCR Error: {str(e)}")
-        print("Fallback to English OCR...")
-        data = pytesseract.image_to_data(image, lang='eng', output_type=pytesseract.Output.DICT)
+    # 2. Run Tesseract on preprocessed image
+    custom_model_file = os.path.join(base_dir, "myformmodel.traineddata")
+    has_custom = os.path.exists(custom_model_file)
+    
+    data = None
+    if has_custom:
+        try:
+            data = pytesseract.image_to_data(
+                preprocessed_img,
+                lang='myformmodel',
+                config=f'--tessdata-dir {base_dir}',
+                output_type=pytesseract.Output.DICT
+            )
+            print("OCR successful with custom model (myformmodel)!")
+        except Exception as e:
+            print(f"Custom model OCR error: {e}. Falling back to 'eng'...")
+            
+    if data is None:
+        data = pytesseract.image_to_data(
+            preprocessed_img,
+            lang='eng',
+            output_type=pytesseract.Output.DICT
+        )
+        print("OCR completed with 'eng' model.")
     
     boxes = []
     n_boxes = len(data['level'])
     for i in range(n_boxes):
-        if int(data['conf'][i]) > 0: # Filter out empty/invalid boxes
+        conf = int(data['conf'][i])
+        # Filter out empty or low-confidence noise boxes (< 15)
+        if conf > 15:
             text = data['text'][i].strip()
             if text:
                 boxes.append({
@@ -127,6 +198,7 @@ async def predict(file: UploadFile = File(...)):
                     "height": data['height'][i]
                 })
     
+    print(f"Extracted {len(boxes)} high-confidence text boxes.")
     return {"formType": form_type, "boxes": boxes}
 
 if __name__ == "__main__":
@@ -135,3 +207,4 @@ if __name__ == "__main__":
     print("Make sure you allow Python through your Windows Firewall if asked!")
     print("========================================")
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

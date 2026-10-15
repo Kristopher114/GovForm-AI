@@ -54,7 +54,7 @@ export default function FormSummaryChip({
   };
 
   const view = resolvedId
-    ? getSummaryView(resolvedId, language, false)
+    ? getSummaryView(resolvedId, language, true)
     : null;
 
   const handleSpeak = () => {

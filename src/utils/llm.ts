@@ -62,13 +62,24 @@ export const getErrorCode = (err: unknown): LLMErrorCode | "unknown" => {
 // Config
 // ---------------------------------------------------------------------------
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+const rawGroqKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
+const GROQ_API_KEY = rawGroqKey ? rawGroqKey.trim().replace(/^["']|["']$/g, "") : "";
+const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.8-27b",
+];
 
-const REQUEST_TIMEOUT_MS = 15000; // give up on a single request after 15 s
-const MAX_ATTEMPTS = 2; // 1 try + 1 automatic retry for temporary problems
-const RETRY_DELAY_MS = 1200;
+const rawGeminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = rawGeminiKey ? rawGeminiKey.trim().replace(/^["']|["']$/g, "") : "";
+const GEMINI_MODELS = [
+  "gemini-1.5-flash",
+  "gemini-2.0-flash",
+];
+
+const REQUEST_TIMEOUT_MS = 120000; // give up on a single request after 2 minutes (120 s)
+const MAX_ATTEMPTS = 3; // 1 try + 2 automatic retries for temporary problems
+const RETRY_DELAY_MS = 1500;
 
 const RETRYABLE: LLMErrorCode[] = [
   "rate_limit",
@@ -117,8 +128,8 @@ const toLanguageEntry = (value: unknown): LanguageDefinition | null => {
     typeof v.example_sentence === "string" ? v.example_sentence.trim() : "";
   const synonyms = Array.isArray(v.synonyms)
     ? v.synonyms
-        .filter((s): s is string => typeof s === "string" && s.trim() !== "")
-        .map((s) => s.trim())
+      .filter((s): s is string => typeof s === "string" && s.trim() !== "")
+      .map((s) => s.trim())
     : [];
 
   return { definition, example_sentence: example, synonyms };
@@ -241,16 +252,200 @@ Rules:
   return { prompt, systemPrompt };
 };
 
-// Sends one request to Gemini and returns the parsed JSON answer.
-// Has its own timeout and turns every failure into an LLMError.
-// Shared by the dictionary lookup and the sentence explanation.
+// Sends one request to Groq Cloud (OpenAI compatible)
+const callGroqJson = async (
+  systemPrompt: string,
+  prompt: string,
+  signal: AbortSignal,
+): Promise<unknown> => {
+  let lastError: unknown;
+
+  for (const model of GROQ_MODELS) {
+    try {
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: prompt },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `Groq API (${model}) error ${response.status}:`,
+          errorText.slice(0, 300),
+        );
+
+        if (response.status === 429 || response.status >= 500) {
+          lastError = new LLMError(
+            statusToCode(response.status),
+            `Groq API returned status ${response.status}`,
+            true,
+          );
+          continue;
+        }
+
+        throw new LLMError(
+          statusToCode(response.status),
+          `Groq API returned status ${response.status}`,
+          false,
+        );
+      }
+
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content || typeof content !== "string") {
+        throw new LLMError("invalid_response", "Empty response from Groq");
+      }
+
+      const cleaned = content
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "");
+      return JSON.parse(cleaned);
+    } catch (err) {
+      if (err instanceof LLMError && !err.retryable) throw err;
+      if (signal.aborted) throw new LLMError("aborted", "Cancelled");
+      lastError = err;
+    }
+  }
+
+  if (lastError instanceof LLMError) throw lastError;
+  throw new LLMError("server", "Groq service temporarily unavailable");
+};
+
+// Sends one request to Gemini
 const callGeminiJson = async (
+  systemPrompt: string,
+  prompt: string,
+  signal: AbortSignal,
+): Promise<unknown> => {
+  let lastError: unknown;
+
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        signal,
+        headers: {
+          "Content-Type": "application/json",
+          "X-goog-api-key": GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `Gemini API (${model}) error ${response.status}:`,
+          errorText.slice(0, 300),
+        );
+
+        // If the model is 503 (high demand) or 404, try the fallback model if available
+        if (response.status === 503 || response.status === 404) {
+          lastError = new LLMError(
+            statusToCode(response.status),
+            `Gemini API returned status ${response.status}`,
+            true,
+          );
+          continue;
+        }
+
+        // Only "busy" (429) and server-side (5xx) problems are worth retrying.
+        throw new LLMError(
+          statusToCode(response.status),
+          `Gemini API returned status ${response.status}`,
+          response.status === 429 || response.status >= 500,
+        );
+      }
+
+      const data = await response.json();
+
+      if (data?.error) {
+        throw new LLMError("server", String(data.error.message ?? "API error"));
+      }
+
+      const candidate = data?.candidates?.[0];
+      const blockReason = data?.promptFeedback?.blockReason;
+      const finishReason = candidate?.finishReason;
+
+      // Only read normal answer parts (skip any "thought" parts).
+      const parts: any[] = Array.isArray(candidate?.content?.parts)
+        ? candidate.content.parts
+        : [];
+      const text = parts
+        .filter((p) => typeof p?.text === "string" && !p?.thought)
+        .map((p) => p.text)
+        .join("")
+        .trim();
+
+      if (!text) {
+        const refused =
+          !!blockReason ||
+          (!!finishReason &&
+            finishReason !== "STOP" &&
+            finishReason !== "MAX_TOKENS");
+        throw new LLMError(
+          refused ? "blocked" : "invalid_response",
+          refused ? "Response blocked by the AI" : "Empty response",
+        );
+      }
+
+      // Some models wrap JSON in ```json fences even when told not to.
+      const cleaned = text
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "");
+
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        console.error("Gemini did not return valid JSON:", cleaned.slice(0, 200));
+        throw new LLMError("invalid_response", "Response was not valid JSON");
+      }
+    } catch (error) {
+      if (error instanceof LLMError && !error.retryable) throw error;
+      if (signal.aborted) throw new LLMError("aborted", "Cancelled");
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof LLMError) throw lastError;
+  throw new LLMError("server", "Gemini service temporarily unavailable");
+};
+
+// Unified LLM Caller: Prefers Groq (Llama 70B), with Gemini as fallback
+const callLlmJson = async (
   systemPrompt: string,
   prompt: string,
   externalSignal?: AbortSignal,
 ): Promise<unknown> => {
-  if (!GEMINI_API_KEY) {
-    throw new LLMError("auth", "Missing EXPO_PUBLIC_GEMINI_API_KEY");
+  if (!GROQ_API_KEY && !GEMINI_API_KEY) {
+    throw new LLMError(
+      "auth",
+      "Missing API key. Set EXPO_PUBLIC_GROQ_API_KEY or EXPO_PUBLIC_GEMINI_API_KEY in .env",
+    );
   }
 
   const controller = new AbortController();
@@ -267,89 +462,29 @@ const callGeminiJson = async (
   }
 
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "X-goog-api-key": GEMINI_API_KEY,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `Gemini API error ${response.status}:`,
-        errorText.slice(0, 300),
-      );
-      // Only "busy" (429) and server-side (5xx) problems are worth retrying.
-      throw new LLMError(
-        statusToCode(response.status),
-        `Gemini API returned status ${response.status}`,
-        response.status === 429 || response.status >= 500,
-      );
+    // 1. If Groq API key is configured, use Groq (Llama 3.3 70B)
+    if (GROQ_API_KEY) {
+      try {
+        return await callGroqJson(systemPrompt, prompt, controller.signal);
+      } catch (groqError) {
+        console.warn("Groq request failed, trying Gemini fallback if available:", groqError);
+        if (!GEMINI_API_KEY) throw groqError;
+      }
     }
 
-    const data = await response.json();
-
-    if (data?.error) {
-      throw new LLMError("server", String(data.error.message ?? "API error"));
-    }
-
-    const candidate = data?.candidates?.[0];
-    const blockReason = data?.promptFeedback?.blockReason;
-    const finishReason = candidate?.finishReason;
-
-    // Only read normal answer parts (skip any "thought" parts).
-    const parts: any[] = Array.isArray(candidate?.content?.parts)
-      ? candidate.content.parts
-      : [];
-    const text = parts
-      .filter((p) => typeof p?.text === "string" && !p?.thought)
-      .map((p) => p.text)
-      .join("")
-      .trim();
-
-    if (!text) {
-      const refused =
-        !!blockReason ||
-        (!!finishReason &&
-          finishReason !== "STOP" &&
-          finishReason !== "MAX_TOKENS");
-      throw new LLMError(
-        refused ? "blocked" : "invalid_response",
-        refused ? "Response blocked by the AI" : "Empty response",
-      );
-    }
-
-    // Some models wrap JSON in ```json fences even when told not to.
-    const cleaned = text
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "");
-
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      console.error("Gemini did not return valid JSON:", cleaned.slice(0, 200));
-      throw new LLMError("invalid_response", "Response was not valid JSON");
+    // 2. Use Gemini if available
+    if (GEMINI_API_KEY) {
+      return await callGeminiJson(systemPrompt, prompt, controller.signal);
     }
   } catch (error) {
-    if (error instanceof LLMError) throw error;
     if (timedOut) throw new LLMError("timeout", "Request timed out");
-    if (externalSignal?.aborted) throw new LLMError("aborted", "Cancelled");
-    throw new LLMError("network", "Could not reach the dictionary service");
+    throw error;
   } finally {
     clearTimeout(timer);
     externalSignal?.removeEventListener("abort", onExternalAbort);
   }
+
+  throw new LLMError("server", "No available LLM provider responded");
 };
 
 // Runs `attempt`, retrying once for temporary problems (busy service, network
@@ -382,7 +517,7 @@ const withRetry = async <T>(
   throw lastError;
 };
 
-// One dictionary request: asks Gemini, then checks and cleans the answer.
+// One dictionary request: asks LLM, then checks and cleans the answer.
 const requestOnce = async (
   word: string,
   sentence: string | undefined,
@@ -396,11 +531,11 @@ const requestOnce = async (
     language,
     context,
   );
-  const parsed = await callGeminiJson(systemPrompt, prompt, externalSignal);
+  const parsed = await callLlmJson(systemPrompt, prompt, externalSignal);
 
   const normalized = normalizeLLMResponse(parsed, word);
   if (!normalized || !hasUsableResult(normalized, language)) {
-    console.error("Gemini response missing the requested language");
+    console.error("LLM response missing the requested language");
     throw new LLMError(
       "invalid_response",
       "Response did not contain the requested language",
@@ -469,7 +604,7 @@ const requestSentenceOnce = async (
   externalSignal?: AbortSignal,
 ): Promise<string> => {
   const { prompt, systemPrompt } = buildSentencePrompts(text, language);
-  let parsed = await callGeminiJson(systemPrompt, prompt, externalSignal);
+  let parsed = await callLlmJson(systemPrompt, prompt, externalSignal);
 
   if (Array.isArray(parsed)) {
     parsed = parsed.find((x) => x && typeof x === "object");

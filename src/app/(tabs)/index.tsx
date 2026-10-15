@@ -10,7 +10,11 @@ import { getLargeTextSize, getOpenInLargeText, LargeTextSize, saveLargeTextSize 
 import { logEvent } from '@/utils/metrics';
 import { buildBoxesFromMlKit } from '@/utils/line-context';
 import { checkIsOffline, useIsOffline } from '@/utils/connectivity';
-import { detectFormTypeByKeywords } from '@/utils/classification';
+import {
+  detectFormTypeByKeywords,
+  getFormDisplayName,
+  getFormIdFromType,
+} from '@/utils/classification';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -152,13 +156,18 @@ export default function HomeScreen() {
     setSelectedWord(null);
 
     try {
-      const blurScore = await ExpoBlurDetector.getBlurScore(uri);
+      try {
+        const blurScore = await ExpoBlurDetector.getBlurScore(uri);
+        console.log('🖼️ Gallery blur score:', blurScore);
 
-      if (blurScore < 1000.0) {
-        Alert.alert("Image Blurry", "The image is too blurry. Please upload a clearer photo.");
-        setImage(null);
-        setIsLoading(false);
-        return;
+        if (blurScore > 0 && blurScore < 60.0) {
+          Alert.alert("Image Blurry", "The image is too blurry. Please upload a clearer photo.");
+          setImage(null);
+          setIsLoading(false);
+          return;
+        }
+      } catch (blurErr) {
+        console.warn('Blur detection check skipped due to error:', blurErr);
       }
 
       const ocrSettings = await getOcrSettings();
@@ -197,7 +206,8 @@ export default function HomeScreen() {
         } else {
           throw new Error('Desktop OCR failed with status ' + response.status);
         }
-        // Process locally with Google ML Kit
+      } else {
+        // Skip Python Server! Process locally with Google ML Kit.
         const result = await TextRecognition.recognize(uri);
         data.push(...buildBoxesFromMlKit(result.blocks));
       }
@@ -206,23 +216,32 @@ export default function HomeScreen() {
       setBoundingBoxes(data);
       applyLargeTextPreference();
 
-      // Document Classification
+      // Document Classification (Robust keyword precedence)
       try {
+        const fullText = data.map(b => b.text).join(' ');
+        const keywordType = detectFormTypeByKeywords(fullText);
+
         let formType = "UNKNOWN";
-        if (visualFormType) {
+        if (keywordType !== "UNKNOWN") {
+          formType = keywordType;
+          console.log("Keyword classified form as:", formType);
+        } else if (visualFormType && visualFormType !== "UNKNOWN") {
           formType = visualFormType;
           console.log("Visual OpenCV classified form as:", formType);
-        } else {
-          const fullText = data.map(b => b.text).join(' ');
-          formType = detectFormTypeByKeywords(fullText);
-          console.log("Keyword classified form as:", formType);
         }
-        
+
+        const formId = getFormIdFromType(formType);
+        const displayTitle = getFormDisplayName(formType);
+
         // Save to recents in the background with classification title
-        saveRecentForm(uri, data, formType).catch(err => console.log('Failed to save to recents', err));
-        
-        setDetectedFormId(formType === "UNKNOWN" ? null : formType);
-        logEvent({ event: "scan", detail: formType !== "UNKNOWN" ? formType : undefined });
+        saveRecentForm(
+          uri,
+          data,
+          displayTitle !== "Scanned Document" ? displayTitle : undefined
+        ).catch(err => console.log('Failed to save to recents', err));
+
+        setDetectedFormId(formId);
+        logEvent({ event: "scan", detail: formId ?? undefined });
       } catch (err) {
         // Fallback
         saveRecentForm(uri, data).catch(err => console.log('Failed to save to recents', err));

@@ -23,6 +23,33 @@ CORS(app)
 UPLOAD_FOLDER = '/tmp/uploads' if os.name != 'nt' else 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+def preprocess_for_ocr(image_pil):
+    """
+    OpenCV preprocessing pipeline optimized for physical paper captures:
+    1. EXIF auto-rotation to align pixel axes.
+    2. Morphological division background normalization (removes phone/lamp shadows & yellowing).
+    3. CLAHE (Contrast Limited Adaptive Histogram Equalization) to recover faint ink.
+    4. Gaussian smoothing (3x3) to remove sensor noise and paper grain.
+    """
+    image_transposed = ImageOps.exif_transpose(image_pil)
+    img_rgb = np.array(image_transposed.convert('RGB'))
+    gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+    
+    k_size = max(21, int(max(gray.shape) / 40))
+    if k_size % 2 == 0:
+        k_size += 1
+        
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
+    bg = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+    
+    norm = np.clip((gray.astype(np.float32) / (bg.astype(np.float32) + 1e-5)) * 255.0, 0, 255).astype(np.uint8)
+    
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(norm)
+    preprocessed_cv = cv2.GaussianBlur(enhanced, (3, 3), 0)
+    
+    return preprocessed_cv, image_transposed
+
 def is_blurry(image, threshold=100.0):
     """
     Computes the variance of the Laplacian of the image. 
@@ -53,10 +80,7 @@ def scan_image():
     
     try:
         print(f"📸 Image received! Running OCR on {filename}...")
-        from PIL import ImageOps
         img = Image.open(filepath)
-        # Fix EXIF rotation which often causes Tesseract coordinates to be completely swapped!
-        img = ImageOps.exif_transpose(img)
         
         # Check for blurriness
         if is_blurry(img, threshold=80.0):  # 80.0 is a good baseline, can be adjusted
@@ -64,10 +88,13 @@ def scan_image():
             os.remove(filepath)
             return jsonify({"error": "BLURRY", "message": "The photo is too blurry. Please hold the camera steady and try again."}), 400
 
+        # OpenCV Preprocessing pipeline (shadow removal, CLAHE contrast boost)
+        preprocessed_img, clean_pil = preprocess_for_ocr(img)
+
         # Run Tesseract to get bounding boxes and text
         # --psm 11 looks for sparse text (good for forms and scattered words)
         custom_config = r'--psm 11'
-        ocr_data = pytesseract.image_to_data(img, output_type=Output.DICT, config=custom_config)
+        ocr_data = pytesseract.image_to_data(preprocessed_img, output_type=Output.DICT, config=custom_config)
         
         bounding_boxes = []
         
