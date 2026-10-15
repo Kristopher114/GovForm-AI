@@ -1,5 +1,7 @@
 package expo.modules.blurdetector
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -8,6 +10,11 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanner
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -16,8 +23,47 @@ import java.io.FileOutputStream
 import java.io.InputStream
 
 class ExpoBlurDetectorModule : Module() {
+  private var pendingScanPromise: Promise? = null
+  private val SCANNER_REQUEST_CODE = 4281
+
   override fun definition() = ModuleDefinition {
     Name("ExpoBlurDetector")
+
+    OnActivityResult { _, (requestCode, resultCode, data) ->
+      if (requestCode == SCANNER_REQUEST_CODE) {
+        val p = pendingScanPromise
+        pendingScanPromise = null
+        if (p == null) return@OnActivityResult
+
+        try {
+          if (resultCode == Activity.RESULT_OK && data != null) {
+            val docResult = GmsDocumentScanningResult.fromActivityResultIntent(data)
+            val pages = docResult?.pages
+            val uris = mutableListOf<String>()
+            if (pages != null) {
+              for (page in pages) {
+                uris.add(page.imageUri.toString())
+              }
+            }
+            p.resolve(mapOf(
+              "status" to "success",
+              "scannedImages" to uris
+            ))
+          } else {
+            p.resolve(mapOf(
+              "status" to "cancel",
+              "scannedImages" to emptyList<String>()
+            ))
+          }
+        } catch (e: Exception) {
+          android.util.Log.e("ExpoBlurDetector", "Error handling scanner result: ${e.message}", e)
+          p.resolve(mapOf(
+            "status" to "cancel",
+            "scannedImages" to emptyList<String>()
+          ))
+        }
+      }
+    }
 
     AsyncFunction("getBlurScore") { uriString: String ->
       getBlurScoreImpl(uriString)
@@ -25,6 +71,66 @@ class ExpoBlurDetectorModule : Module() {
 
     AsyncFunction("sharpenImage") { uriString: String ->
       enhanceDocumentImpl(uriString)
+    }
+
+    AsyncFunction("scanDocument") { options: Map<String, Any?>?, promise: Promise ->
+      scanDocumentImpl(options, promise)
+    }
+  }
+
+  private fun scanDocumentImpl(options: Map<String, Any?>?, promise: Promise) {
+    val currentActivity = appContext.currentActivity
+
+    if (currentActivity == null) {
+      promise.reject("ERR_NO_ACTIVITY", "Current activity is null", null)
+      return
+    }
+
+    pendingScanPromise = promise
+
+    try {
+      val maxNum = (options?.get("maxNumDocuments") as? Number)?.toInt() ?: 1
+      val galleryAllowed = options?.get("galleryImportAllowed") as? Boolean ?: false
+      val modeStr = (options?.get("mode") as? String) ?: "full"
+
+      val scannerOptionsBuilder = GmsDocumentScannerOptions.Builder()
+        .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+        .setPageLimit(maxNum)
+        .setGalleryImportAllowed(galleryAllowed)
+
+      when (modeStr) {
+        "base" -> scannerOptionsBuilder.setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_BASE)
+        "filter" -> scannerOptionsBuilder.setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_BASE_WITH_FILTER)
+        else -> scannerOptionsBuilder.setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+      }
+
+      val scanner = GmsDocumentScanning.getClient(scannerOptionsBuilder.build())
+
+      scanner.getStartScanIntent(currentActivity)
+        .addOnSuccessListener(currentActivity) { intentSender ->
+          currentActivity.runOnUiThread {
+            try {
+              currentActivity.startIntentSenderForResult(
+                intentSender,
+                SCANNER_REQUEST_CODE,
+                null,
+                0,
+                0,
+                0
+              )
+            } catch (launchErr: Exception) {
+              pendingScanPromise = null
+              promise.reject("ERR_LAUNCH_FAILED", launchErr.message, launchErr)
+            }
+          }
+        }
+        .addOnFailureListener(currentActivity) { error ->
+          pendingScanPromise = null
+          promise.reject("ERR_SCAN_INTENT", error.message, error)
+        }
+    } catch (e: Exception) {
+      pendingScanPromise = null
+      promise.reject("ERR_SETUP_FAILED", e.message, e)
     }
   }
 

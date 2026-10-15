@@ -420,3 +420,19 @@ To test it on your device:
 - **Classification Imports**: Repaired a missing `detectFormTypeByKeywords` import module linkage inside `index.tsx` preventing string-based fallback matching from compiling properly.
 - **Component Prop Validation**: Corrected an invalid `variant="circle"` property passed to `HowToUseButton`, standardizing it to the verified `"pill"` design token.
 - **TTS API Strict Types**: Stripped unsupported `onError` payload properties from `SpeakOptions` in both `form-summary-sheet.tsx` and `ai-dictionary-modal.tsx` to comply with rigorous `expo-speech` TypeScript declarations, eliminating all compilation warnings.
+
+## Update: October 16, 2026 - Native Google ML Kit Document Scanner & Touch Freeze Fix
+
+### 1. First-Party Native Document Scanner (`modules/expo-blur-detector`)
+- **Direct Google Play Services Integration**: Replaced third-party unmaintained scanner plugins with our own native implementation powered by `com.google.android.gms:play-services-mlkit-document-scanner:16.0.0` directly inside `modules/expo-blur-detector`.
+- **Modern Expo Modules API**: Implemented the scanner using Expo's modern `OnActivityResult` DSL in Kotlin (`ExpoBlurDetectorModule.kt`), completely removing deprecated React Native bridge imports (`BaseActivityEventListener`, `ReactApplicationContext`) to ensure seamless compatibility with Expo SDK 57 and Kotlin 2.1.
+- **Gallery Import Lockdown**: Enforced `.setGalleryImportAllowed(false)` natively to prevent users from bypassing the camera scanner with arbitrary gallery photos.
+- **TypeScript Type Definitions**: Added complete type signatures in `modules/expo-blur-detector/src/ExpoBlurDetectorModule.ts` for `scanDocument` options (`mode`, `galleryImportAllowed`, `maxNumDocuments`) and return payloads (`status`, `scannedImages`).
+
+### 2. Scanner UI Freeze & Button Unresponsiveness Resolution
+- **Root Cause Analysis (Tapjacking Security)**: Investigated and documented why the scanner's bottom buttons (`Discard scan`, `Next`, and manual shutter) became unresponsive to touch. Google Play Services activities enforce `filterTouchesWhenObscured="true"`. If an active phone call, chat bubble, screen recorder, or floating overlay is running on the device (as detected via status bar indicators), Android flags touch events with `FLAG_WINDOW_IS_PARTIALLY_OBSCURED` and silently drops all clicks to protect against tapjacking.
+- **Camera Hardware Concurrency Solution**: In `src/app/camera.tsx`, introduced an `isAutoScanning` state that cleanly pauses/unmounts the background `<CameraView>` and disables pointer events (`pointerEvents="none"`) before launching Google's scanner. This releases the camera hardware HAL and detaches window-level gesture listeners so Google's activity has dedicated camera access without input dispatch contention.
+- **UI Thread Safety in Kotlin**: Wrapped `startIntentSenderForResult` inside `currentActivity.runOnUiThread` tied to the Activity lifecycle, preventing thread dispatch locks.
+- **Defensive Error Boundaries**: Wrapped activity result parsing in try-catch blocks to safely handle cancellation and discard events without triggering unhandled `IllegalStateException` crashes.
+- **Full Feature Google Scanner (`SCANNER_MODE_FULL`)**: Activated the full Google document scanner experience—delivering automatic corner boundary detection, interactive crop & rotate, perspective unwarping, blemish/shadow cleaning, and high-contrast text enhancement filters directly into the OCR pipeline.
+

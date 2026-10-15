@@ -49,12 +49,6 @@
             "usesCleartextTraffic": true
           }
         }
-      ],
-      [
-        "react-native-document-scanner-plugin",
-        {
-          "cameraPermission": "We need camera access to scan documents."
-        }
       ]
     ],
     "experiments": {

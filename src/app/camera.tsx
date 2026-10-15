@@ -69,6 +69,7 @@ export default function CameraOCRScreen() {
   } | null>(null);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAutoScanning, setIsAutoScanning] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Processing document with OCR...');
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
   const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
@@ -192,6 +193,72 @@ export default function CameraOCRScreen() {
     .onEnd(() => {
       runOnJS(setZoom)(Math.round(zoomShared.value * 100) / 100);
     });
+
+  const handleAutoScan = async () => {
+    if (isProcessing || isAutoScanning) return;
+
+    try {
+      setIsAutoScanning(true);
+      setIsProcessing(true);
+      setLoadingMessage('Opening Document Scanner...');
+
+      // Small tick delay to let React unmount CameraView and release camera hardware & touch focus
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      if (typeof ExpoBlurDetector.scanDocument === 'function') {
+        const result = await ExpoBlurDetector.scanDocument({
+          mode: 'full', // Full Google Document Scanner UI: auto/manual capture, crop & rotate, filters & save
+          galleryImportAllowed: false, // 🚫 Permanently disables the gallery button
+          maxNumDocuments: 1,
+        });
+
+        if (result && result.status === 'success' && result.scannedImages && result.scannedImages.length > 0) {
+          setLoadingMessage('Optimizing document...');
+          const scannedUri = result.scannedImages[0];
+
+          let manipResult = await ImageManipulator.manipulateAsync(
+            scannedUri,
+            [{ resize: { width: 1800 } }],
+            { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
+          );
+
+          try {
+            if (typeof ExpoBlurDetector.sharpenImage === 'function') {
+              const enhancedUri = await ExpoBlurDetector.sharpenImage(manipResult.uri);
+              if (enhancedUri && enhancedUri !== manipResult.uri) {
+                manipResult = {
+                  uri: enhancedUri,
+                  width: manipResult.width,
+                  height: manipResult.height,
+                };
+              }
+            }
+          } catch (enhErr) {
+            console.warn('Text enhancement skipped:', enhErr);
+          }
+
+          setCapturedImage({
+            uri: manipResult.uri,
+            width: manipResult.width,
+            height: manipResult.height,
+          });
+
+          await processCapturedPhoto(manipResult.uri, manipResult.width, manipResult.height);
+        }
+      } else {
+        Alert.alert(
+          'Scanner Unavailable',
+          'Auto document scanner requires an Android device with Google Play Services. You can use the manual shutter below.'
+        );
+      }
+    } catch (err) {
+      console.error('Auto scan error:', err);
+      Alert.alert('Scanner Error', 'Failed to scan document: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsAutoScanning(false);
+      setIsProcessing(false);
+    }
+  };
 
   const handleCapture = async () => {
     if (!cameraRef.current || isProcessing) return;
@@ -636,30 +703,44 @@ export default function CameraOCRScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.cameraIconButton, torch && styles.cameraIconButtonActive]}
-          onPress={() => setTorch(!torch)}
-        >
-          <Ionicons
-            name={torch ? 'flash' : 'flash-outline'}
-            size={22}
-            color={torch ? '#000' : '#FFF'}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            style={styles.autoScanPill}
+            onPress={handleAutoScan}
+            disabled={isProcessing}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="scan-outline" size={15} color="#FFF" />
+            <Text style={styles.autoScanPillText}>Auto</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.cameraIconButton, torch && styles.cameraIconButtonActive]}
+            onPress={() => setTorch(!torch)}
+          >
+            <Ionicons
+              name={torch ? 'flash' : 'flash-outline'}
+              size={22}
+              color={torch ? '#000' : '#FFF'}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 4:3 Viewfinder Container with pinch-to-zoom gesture */}
       <View style={styles.viewfinderWrapper}>
         <GestureDetector gesture={pinchCameraGesture}>
-          <View style={styles.viewfinder43}>
-            <CameraView
-              ref={cameraRef}
-              style={StyleSheet.absoluteFill}
-              facing="back"
-              ratio="4:3"
-              zoom={zoom}
-              enableTorch={torch}
-            />
+          <View style={styles.viewfinder43} pointerEvents={isAutoScanning ? 'none' : 'auto'}>
+            {!isAutoScanning && (
+              <CameraView
+                ref={cameraRef}
+                style={StyleSheet.absoluteFill}
+                facing="back"
+                ratio="4:3"
+                zoom={zoom}
+                enableTorch={torch}
+              />
+            )}
 
             {/* Document Framing Guide overlay */}
             <View style={styles.frameGuideBox} pointerEvents="none">
@@ -694,8 +775,18 @@ export default function CameraOCRScreen() {
           })}
         </View>
 
-        {/* Shutter Button */}
+        {/* Bottom Bar: Zoom Controls & Manual Shutter Button */}
         <View style={styles.shutterRow}>
+          <TouchableOpacity
+            style={[styles.scannerSwitchButton, isProcessing && styles.captureDisabled]}
+            onPress={handleAutoScan}
+            disabled={isProcessing}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="scan" size={20} color="#2182DE" />
+            <Text style={styles.scannerSwitchText}>Auto</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.captureOuterRing, isProcessing && styles.captureDisabled]}
             onPress={handleCapture}
@@ -708,9 +799,11 @@ export default function CameraOCRScreen() {
               <View style={styles.captureInnerCircle} />
             )}
           </TouchableOpacity>
+
+          <View style={styles.shutterSpacer} />
         </View>
 
-        <Text style={styles.cameraHintText}>Hold steady • Tap shutter to capture</Text>
+        <Text style={styles.cameraHintText}>Tap Auto for auto-capture • Or Shutter for manual</Text>
       </View>
     </SafeAreaView>
   );
@@ -860,9 +953,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   shutterRow: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  scannerSwitchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(33, 130, 222, 0.2)',
+    borderWidth: 1.5,
+    borderColor: '#2182DE',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    position: 'absolute',
+    left: 24,
+  },
+  scannerSwitchText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shutterSpacer: {
+    width: 60,
+  },
+  autoScanPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2182DE',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    marginRight: 6,
+  },
+  autoScanPillText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   captureOuterRing: {
     width: 80,
