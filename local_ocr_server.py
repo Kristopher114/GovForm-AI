@@ -69,46 +69,22 @@ bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
 
 def preprocess_for_ocr(image_pil: Image.Image):
-    """
-    OpenCV preprocessing pipeline optimized for physical paper captures:
-    1. EXIF auto-rotation to align pixel axes with physical perspective.
-    2. Background illumination division to eliminate shadows, uneven desk lighting, and paper yellowing.
-    3. CLAHE (Contrast Limited Adaptive Histogram Equalization) to amplify faint ink & dot-matrix text.
-    4. Gaussian smoothing (3x3) to remove high-frequency camera sensor noise.
-    
-    Returns:
-        preprocessed_cv (numpy.ndarray): Clean grayscale image ready for Tesseract OCR.
-        normalized_pil (Image.Image): Transposed PIL Image for downstream tasks.
-    """
     # 1. EXIF auto-rotation
     image_transposed = ImageOps.exif_transpose(image_pil)
     
-    # 2. Convert to OpenCV grayscale
+    # 2. Convert to Grayscale
     img_rgb = np.array(image_transposed.convert('RGB'))
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
     
-    # 3. Morphological background illumination division (Shadow / Gradient removal)
-    # Proportional kernel size (approx 1/40th of max dimension, minimum 21 pixels)
-    k_size = max(21, int(max(gray.shape) / 40))
-    if k_size % 2 == 0:
-        k_size += 1
-        
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_size, k_size))
-    # Morphological closing creates an accurate estimate of the background illumination plane
-    bg = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+    # 3. High-detail Unsharp Mask (Sharpens small 8pt text instead of blurring it)
+    gaussian = cv2.GaussianBlur(gray, (0, 0), 2.0)
+    sharpened = cv2.addWeighted(gray, 1.5, gaussian, -0.5, 0)
     
-    # Division normalization: img / bg * 255
-    # Pixels where ink is present stay dark; paper background becomes pure 255 white everywhere
-    norm = np.clip((gray.astype(np.float32) / (bg.astype(np.float32) + 1e-5)) * 255.0, 0, 255).astype(np.uint8)
+    # 4. Balanced CLAHE to enhance faint ink without blowing out table lines
+    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+    enhanced = clahe.apply(sharpened)
     
-    # 4. CLAHE for contrast enhancement
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    enhanced = clahe.apply(norm)
-    
-    # 5. Gaussian blur (3x3) to eliminate paper grain & sensor speckles
-    preprocessed_cv = cv2.GaussianBlur(enhanced, (3, 3), 0)
-    
-    return preprocessed_cv, image_transposed
+    return enhanced, image_transposed
 
 
 def detect_form_visually(image_cv_gray):
@@ -157,7 +133,8 @@ async def predict(file: UploadFile = File(...)):
     form_type = detect_form_visually(preprocessed_img)
     print(f"Visual classification result: {form_type}")
     
-    # 2. Run Tesseract on preprocessed image
+    # 2. Run Tesseract on preprocessed image with --psm 11
+    tess_config = f'--tessdata-dir {base_dir} --psm 11'
     custom_model_file = os.path.join(base_dir, "myformmodel.traineddata")
     has_custom = os.path.exists(custom_model_file)
     
@@ -167,7 +144,7 @@ async def predict(file: UploadFile = File(...)):
             data = pytesseract.image_to_data(
                 preprocessed_img,
                 lang='myformmodel',
-                config=f'--tessdata-dir {base_dir}',
+                config=tess_config,
                 output_type=pytesseract.Output.DICT
             )
             print("OCR successful with custom model (myformmodel)!")
@@ -178,6 +155,7 @@ async def predict(file: UploadFile = File(...)):
         data = pytesseract.image_to_data(
             preprocessed_img,
             lang='eng',
+            config='--psm 11',
             output_type=pytesseract.Output.DICT
         )
         print("OCR completed with 'eng' model.")
@@ -186,8 +164,8 @@ async def predict(file: UploadFile = File(...)):
     n_boxes = len(data['level'])
     for i in range(n_boxes):
         conf = int(data['conf'][i])
-        # Filter out empty or low-confidence noise boxes (< 15)
-        if conf > 15:
+        # Filter out empty or low-confidence noise boxes (< 5)
+        if conf > 5:
             text = data['text'][i].strip()
             if text:
                 boxes.append({
