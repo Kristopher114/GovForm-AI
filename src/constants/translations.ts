@@ -104,7 +104,10 @@ export type TranslationKey =
   | "offline_try_again"
   | "offline_checking"
   | "offline_still"
-  | "offline_scan_blocked";
+  | "offline_scan_blocked"
+  | "service_status_notice_title"
+  | "service_status_notice_msg"
+  | "service_status_fallback_scan_msg";
 
 export const translations: Record<
   LanguageKey,
@@ -241,6 +244,11 @@ export const translations: Record<
     offline_still: "Still offline. Please turn on Wi-Fi or mobile data.",
     offline_scan_blocked:
       "Scanning is turned off while you are offline. Connect to the internet to scan a new form.",
+    service_status_notice_title: "Service Status Notice",
+    service_status_notice_msg:
+      "The primary processing host is currently offline or temporarily unavailable. Image processing has been seamlessly routed to the on-device Google ML Kit engine as a local client-side fallback.",
+    service_status_fallback_scan_msg:
+      "Primary processing host became unavailable. Seamlessly routing image processing to the on-device Google ML Kit engine as fallback.",
   },
   Tagalog: {
     app_title: "GovForm AI",
@@ -375,6 +383,11 @@ export const translations: Record<
     offline_still: "Offline pa rin. Paki-on ang Wi-Fi o mobile data.",
     offline_scan_blocked:
       "Naka-off ang pag-scan habang offline. Kumonekta sa internet para mag-scan ng bagong form.",
+    service_status_notice_title: "Paunawa sa Katayuan ng Serbisyo",
+    service_status_notice_msg:
+      "Kasalukuyang offline o pansamantalang hindi maabot ang primary host server. Ang pagproseso ng imahe ay awtomatikong inilipat sa on-device Google ML Kit engine bilang fallback.",
+    service_status_fallback_scan_msg:
+      "Hindi maabot ang primary host server. Awtomatikong inilipat ang pagproseso ng imahe sa on-device Google ML Kit engine bilang fallback.",
   },
   Cebuano: {
     app_title: "GovForm AI",
@@ -509,5 +522,10 @@ export const translations: Record<
     offline_still: "Offline pa gihapon. Palihug i-on ang Wi-Fi o mobile data.",
     offline_scan_blocked:
       "Gi-off ang pag-scan samtang offline. Konekta sa internet aron mag-scan og bag-ong form.",
+    service_status_notice_title: "Pahibalo sa Kahimtang sa Serbisyo",
+    service_status_notice_msg:
+      "Ang primary host server kasamtangang offline o dili makab-ot. Ang pagproseso sa imahe awtomatikong gibalhin sa on-device Google ML Kit engine isip fallback.",
+    service_status_fallback_scan_msg:
+      "Dili makab-ot ang primary host server. Awtomatikong gibalhin ang pagproseso sa imahe sa on-device Google ML Kit engine isip fallback.",
   },
 };

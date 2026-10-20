@@ -4,6 +4,7 @@ import * as Network from 'expo-network';
 import { useEffect } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { runStartupHostWorkflow } from "@/utils/remote-config";
 
 export default function WelcomeScreen() {
   const checkLanguageAndNavigate = async () => {
@@ -25,8 +26,12 @@ export default function WelcomeScreen() {
     }
   };
 
-  // Auto-navigate to appropriate screen after 2.5 seconds
+  // Launch the primary processing host operational workflow immediately on launch
   useEffect(() => {
+    runStartupHostWorkflow().catch((err) => {
+      console.warn("Startup host workflow warm-up error:", err);
+    });
+
     const timer = setTimeout(() => {
       checkLanguageAndNavigate();
     }, 2500);

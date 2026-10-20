@@ -467,5 +467,19 @@ To test it on your device:
   - 🟡 **Checking...**: Fast non-blocking ping in progress.
 - **Automated Health Triggers**: Background health checks trigger automatically upon entering the Settings screen (`useFocusEffect`), syncing from Firestore, or selecting Server 1.
 
+### 6. Thesis-Driven Operational Workflow & Seamless Client-Side Fallback (`runStartupHostWorkflow`)
+- **Startup Connectivity Verification**: Directly aligns with the thesis specification:
+  > *"The operational workflow begins when the user launches the mobile application. The system attempts to connect to the primary processing host. If the backend server is down, offline, or temporarily unavailable, the application immediately displays an informative service status alert and seamlessly routes image processing to the on-device Google ML Kit engine as a local client-side fallback."*
+- **App Launch Lifecycle (`src/app/index.tsx` & `src/app/(tabs)/index.tsx`)**:
+  - The check kicks off immediately during launch warm-up in `src/app/index.tsx`.
+  - When the user arrives on the home screen (`HomeScreen`), `runStartupHostWorkflow()` verifies the host `/health` endpoint.
+  - If unreachable or down, the app immediately displays the informative service status alert and automatically updates `ocrMode` to `native`.
+- **Runtime Mid-Scan Failover Protection (`camera.tsx` & `(tabs)/index.tsx`)**:
+  - If the primary host goes offline mid-scan (network drop, tunnel disconnect, or 502/503), the error is gracefully caught.
+  - The app alerts the user with the service status notice, updates `ocrMode` to `native`, and immediately executes on-device Google ML Kit OCR on the captured image without failing or terminating the scan.
+- **Multilingual Service Alerts**:
+  - Full translations for the service status notice across **English**, **Tagalog**, and **Cebuano** in `src/constants/translations.ts`.
+
+
 
 

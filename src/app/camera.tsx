@@ -11,7 +11,7 @@ import {
 import { getLargeTextSize, getOpenInLargeText, LargeTextSize, saveLargeTextSize } from '@/utils/large-text-settings';
 import { buildBoxesFromMlKit } from '@/utils/line-context';
 import { logEvent } from '@/utils/metrics';
-import { getOcrSettings } from '@/utils/ocr-settings';
+import { getOcrSettings, saveOcrMode } from '@/utils/ocr-settings';
 import { saveRecentForm } from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
@@ -377,28 +377,42 @@ export default function CameraOCRScreen() {
           ? cleanIp
           : `http://${cleanIp}:8000`;
         const url = `${baseUrl}/predict`;
-        const response = await FileSystem.uploadAsync(url, photoUri, {
-          fieldName: 'file',
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        });
 
-        if (response.status === 200) {
-          const result = JSON.parse(response.body);
-          if (result.formType && result.formType !== 'UNKNOWN') {
-            visualFormType = result.formType;
+        try {
+          const response = await FileSystem.uploadAsync(url, photoUri, {
+            fieldName: 'file',
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          });
+
+          if (response.status === 200) {
+            const result = JSON.parse(response.body);
+            if (result.formType && result.formType !== 'UNKNOWN') {
+              visualFormType = result.formType;
+            }
+            data = result.boxes.map((box: any) => ({
+              text: box.text,
+              sentence: box.text,
+              line: box.text,
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+            }));
+          } else {
+            throw new Error('Desktop OCR failed with status ' + response.status);
           }
-          data = result.boxes.map((box: any) => ({
-            text: box.text,
-            sentence: box.text,
-            line: box.text,
-            x: box.x,
-            y: box.y,
-            width: box.width,
-            height: box.height,
-          }));
-        } else {
-          throw new Error('Desktop OCR failed with status ' + response.status);
+        } catch (serverErr) {
+          console.warn('Primary processing host failed during camera capture, falling back to on-device Google ML Kit:', serverErr);
+          Alert.alert(
+            t("service_status_notice_title"),
+            t("service_status_fallback_scan_msg"),
+            [{ text: "OK" }]
+          );
+          await saveOcrMode('native');
+          setLoadingMessage('Processing with on-device Google ML Kit fallback...');
+          const result = await TextRecognition.recognize(photoUri);
+          data.push(...buildBoxesFromMlKit(result.blocks));
         }
       } else {
         // Local ML Kit OCR

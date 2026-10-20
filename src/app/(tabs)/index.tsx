@@ -1,6 +1,7 @@
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { useLocalization } from '@/context/LocalizationContext';
-import { getOcrSettings } from '@/utils/ocr-settings';
+import { getOcrSettings, saveOcrMode } from '@/utils/ocr-settings';
+import { runStartupHostWorkflow } from '@/utils/remote-config';
 import { saveRecentForm } from '@/utils/storage';
 import FormSummaryChip from '@/components/form-summary-sheet';
 import { HowToUseButton, HowToUseFirstLaunch } from '@/components/how-to-use-sheet';
@@ -150,6 +151,34 @@ export default function HomeScreen() {
     });
   }, [image, navigation]);
 
+  // Thesis Operational Workflow: Check primary processing host on launch
+  useEffect(() => {
+    let isMounted = true;
+
+    const executeStartupWorkflow = async () => {
+      try {
+        const result = await runStartupHostWorkflow();
+        if (!isMounted) return;
+
+        if (result.fallbackTriggered) {
+          Alert.alert(
+            t("service_status_notice_title"),
+            t("service_status_notice_msg"),
+            [{ text: "OK" }]
+          );
+        }
+      } catch (err) {
+        console.warn("Startup host connection workflow error:", err);
+      }
+    };
+
+    executeStartupWorkflow();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [t]);
+
   const processImageOCR = async (uri: string, originalWidth: number, originalHeight: number) => {
     setImage({ uri, width: originalWidth, height: originalHeight });
     setIsLoading(true);
@@ -184,27 +213,40 @@ export default function HomeScreen() {
           ? cleanIp
           : `http://${cleanIp}:8000`;
         const url = `${baseUrl}/predict`;
-        const response = await FileSystem.uploadAsync(url, uri, {
-          fieldName: 'file',
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        });
 
-        if (response.status === 200) {
-          const result = JSON.parse(response.body);
-          if (result.formType && result.formType !== 'UNKNOWN') {
-            visualFormType = result.formType;
+        try {
+          const response = await FileSystem.uploadAsync(url, uri, {
+            fieldName: 'file',
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          });
+
+          if (response.status === 200) {
+            const result = JSON.parse(response.body);
+            if (result.formType && result.formType !== 'UNKNOWN') {
+              visualFormType = result.formType;
+            }
+            data = result.boxes.map((box: any) => ({
+              text: box.text,
+              sentence: box.text, // Fallback to text since Python Tesseract doesn't currently group sentences
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+            }));
+          } else {
+            throw new Error('Desktop OCR failed with status ' + response.status);
           }
-          data = result.boxes.map((box: any) => ({
-            text: box.text,
-            sentence: box.text, // Fallback to text since Python Tesseract doesn't currently group sentences
-            x: box.x,
-            y: box.y,
-            width: box.width,
-            height: box.height,
-          }));
-        } else {
-          throw new Error('Desktop OCR failed with status ' + response.status);
+        } catch (serverErr) {
+          console.warn('Primary processing host failed during scan, falling back to on-device Google ML Kit:', serverErr);
+          Alert.alert(
+            t("service_status_notice_title"),
+            t("service_status_fallback_scan_msg"),
+            [{ text: "OK" }]
+          );
+          await saveOcrMode('native');
+          const result = await TextRecognition.recognize(uri);
+          data.push(...buildBoxesFromMlKit(result.blocks));
         }
       } else {
         // Skip Python Server! Process locally with Google ML Kit.
