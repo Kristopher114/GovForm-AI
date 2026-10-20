@@ -214,28 +214,20 @@ export const summaryLines = (sm: ResearchSummary): string[] => {
 };
 
 // ---------------------------------------------------------------------------
-// "Show draft form summaries" (testers only)
+// "Show draft form summaries" (Always enabled)
 // ---------------------------------------------------------------------------
-// Form summaries are shown to normal users only after they are approved. Testers can
-// switch this on (it needs research mode too) to see the drafts, marked as DRAFT.
+// Draft form summaries are permanently enabled.
 export const isShowDraftsEnabled = async (): Promise<boolean> => {
-  if (showDraftsCache !== null) return showDraftsCache;
-  try {
-    showDraftsCache = (await AsyncStorage.getItem(SHOW_DRAFTS_KEY)) === "true";
-  } catch {
-    showDraftsCache = false;
-  }
-  return showDraftsCache;
+  return true;
 };
 
-export const setShowDraftsEnabled = async (value: boolean): Promise<void> => {
-  showDraftsCache = value;
+export const setShowDraftsEnabled = async (_value: boolean): Promise<void> => {
+  showDraftsCache = true;
   try {
-    await AsyncStorage.setItem(SHOW_DRAFTS_KEY, value ? "true" : "false");
+    await AsyncStorage.setItem(SHOW_DRAFTS_KEY, "true");
   } catch (error) {
     console.log("Could not save the draft summaries setting:", error);
   }
 };
 
-export const canShowDraftSummaries = async (): Promise<boolean> =>
-  (await isResearchEnabled()) && (await isShowDraftsEnabled());
+export const canShowDraftSummaries = async (): Promise<boolean> => true;

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GovForm AI - Server URL Dispatcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Firebase SDK via CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0A0D14;
+      --card-bg: rgba(18, 24, 38, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #2182DE;
+      --primary-hover: #1966B2;
+      --primary-glow: rgba(33, 130, 222, 0.35);
+      --success: #10B981;
+      --success-glow: rgba(16, 185, 129, 0.25);
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --input-bg: rgba(11, 15, 25, 0.8);
+      --input-border: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(33, 130, 222, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Glass Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 6px;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2182DE, #0E4B82);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px var(--primary-glow);
+    }
+
+    .logo-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: #FFF;
+    }
+
+    .header-title h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #FFF;
+    }
+
+    .header-title p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .config-trigger-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .config-trigger-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFF;
+    }
+
+    /* Main Card */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Status Pill Banner */
+    .status-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: rgba(11, 15, 25, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+    }
+
+    .status-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .status-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFF;
+      word-break: break-all;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-badge.synced {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-badge.pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    /* Form Section */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .input-label span {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 16px 48px 16px 18px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      border-radius: 14px;
+      color: #FFF;
+      font-size: 15px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .text-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--primary-glow);
+    }
+
+    .paste-btn {
+      position: absolute;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .paste-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FFF;
+    }
+
+    /* Quick Preset Chips */
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .preset-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .preset-chip:hover {
+      background: rgba(33, 130, 222, 0.15);
+      border-color: var(--primary);
+      color: #FFF;
+    }
+
+    /* Actions Row */
+    .actions-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      flex: 2;
+      background: linear-gradient(135deg, #2182DE, #1966B2);
+      color: #FFF;
+      box-shadow: 0 8px 24px var(--primary-glow);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #298DEE, #2182DE);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(33, 130, 222, 0.45);
+    }
+
+    .btn-secondary {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #FFF;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Live Feedback Toast */
+    .feedback-message {
+      display: none;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    .feedback-message.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .feedback-message.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34D399;
+    }
+
+    .feedback-message.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+    }
+
+    .feedback-message.info {
+      background: rgba(33, 130, 222, 0.15);
+      border: 1px solid rgba(33, 130, 222, 0.3);
+      color: #60A5FA;
+    }
+
+    /* Config Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 520px;
+      background: #121826;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFF;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .modal-input {
+      padding: 12px 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      color: #FFF;
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+    }
+
+    .modal-input:focus {
+      border-color: var(--primary);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+          </svg>
+        </div>
+        <div class="header-title">
+          <h1>GovForm AI Server Dispatcher</h1>
+          <p>Sync active Desktop / Cloudflare URL to mobile app via Firestore</p>
+        </div>
+      </div>
+      <button class="config-trigger-btn" id="openConfigBtn">
+        ⚙️ Firebase Config
+      </button>
+    </header>
+
+    <!-- Main Card -->
+    <div class="card">
+      <!-- Status Banner -->
+      <div class="status-banner">
+        <div class="status-info">
+          <span class="status-label">Active Cloudflare / Desktop URL</span>
+          <span class="status-value" id="currentUrlDisplay">Checking Firestore...</span>
+        </div>
+        <div class="status-badge pending" id="statusBadge">
+          <span class="status-dot"></span>
+          <span id="statusBadgeText">Connecting</span>
+        </div>
+      </div>
+
+      <!-- Input Group -->
+      <div class="input-group">
+        <label class="input-label" for="urlInput">
+          Enter New Server URL
+          <span id="lastUpdatedDisplay">Never updated</span>
+        </label>
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="urlInput" 
+            class="text-input" 
+            placeholder="https://your-tunnel.trycloudflare.com or http://192.168.137.1:8000"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button class="paste-btn" id="pasteBtn" type="button">Paste</button>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="preset-chips">
+          <button class="preset-chip" type="button" data-val="http://192.168.137.1:8000">192.168.137.1:8000 (Hotspot)</button>
+          <button class="preset-chip" type="button" data-val="http://localhost:8000">localhost:8000 (Local)</button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions-row">
+        <button class="btn btn-secondary" id="testPingBtn" type="button">
+          🔍 Test URL
+        </button>
+        <button class="btn btn-primary" id="publishBtn" type="button">
+          🚀 Publish to Mobile App
+        </button>
+      </div>
+
+      <!-- Feedback Messages -->
+      <div class="feedback-message" id="feedbackMessage"></div>
+    </div>
+  </div>
+
+  <!-- Firebase Credentials Setup Modal -->
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>⚙️ Firebase Configuration</h2>
+        <button class="modal-close-btn" id="closeConfigBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Paste your Web App config from <b>Firebase Console > Project Settings > Your Apps</b>. These are saved locally in your browser.
+        </p>
+
+        <label style="font-size:12px; font-weight:600; color:#AAA;">Firebase Project ID</label>
+        <input type="text" class="modal-input" id="cfgProjectId" placeholder="govform-ai-12345">
+
+        <label style="font-size:12px; font-weight:600; color:#AAA;">API Key</label>
+        <input type="text" class="modal-input" id="cfgApiKey" placeholder="AIzaSy...">
+
+        <button class="btn btn-primary" id="saveConfigBtn" style="margin-top:12px;" type="button">
+          Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State & DOM
+    let db = null;
+    const currentUrlDisplay = document.getElementById('currentUrlDisplay');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusBadgeText = document.getElementById('statusBadgeText');
+    const lastUpdatedDisplay = document.getElementById('lastUpdatedDisplay');
+    const urlInput = document.getElementById('urlInput');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const testPingBtn = document.getElementById('testPingBtn');
+    const publishBtn = document.getElementById('publishBtn');
+    const feedbackMessage = document.getElementById('feedbackMessage');
+    
+    // Modal DOM
+    const openConfigBtn = document.getElementById('openConfigBtn');
+    const closeConfigBtn = document.getElementById('closeConfigBtn');
+    const configModal = document.getElementById('configModal');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const cfgProjectId = document.getElementById('cfgProjectId');
+    const cfgApiKey = document.getElementById('cfgApiKey');
+
+    function showFeedback(text, type = 'info') {
+      feedbackMessage.className = `feedback-message show ${type}`;
+      feedbackMessage.textContent = text;
+    }
+
+    function initFirebase() {
+      const projectId = localStorage.getItem('govform_fb_project_id');
+      const apiKey = localStorage.getItem('govform_fb_api_key');
+
+      if (!projectId || !apiKey) {
+        currentUrlDisplay.textContent = 'Firebase credentials not configured';
+        statusBadge.className = 'status-badge error';
+        statusBadgeText.textContent = 'Missing Config';
+        showFeedback('Please click "Firebase Config" at the top right to link your Firebase project.', 'info');
+        return false;
+      }
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp({
+            apiKey: apiKey,
+            projectId: projectId,
+          });
+        }
+        db = firebase.firestore();
+        listenToCurrentUrl();
+        return true;
+      } catch (err) {
+        console.error('Firebase init error:', err);
+        showFeedback('Failed to initialize Firebase: ' + err.message, 'error');
+        return false;
+      }
+    }
+
+    function listenToCurrentUrl() {
+      if (!db) return;
+
+      statusBadge.className = 'status-badge pending';
+      statusBadgeText.textContent = 'Listening...';
+
+      db.collection('settings').doc('server').onSnapshot((doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          const activeUrl = data.desktop_url || 'Not set';
+          currentUrlDisplay.textContent = activeUrl;
+          statusBadge.className = 'status-badge synced';
+          statusBadgeText.textContent = 'Synced';
+
+          if (data.updated_at) {
+            const date = new Date(data.updated_at);
+            lastUpdatedDisplay.textContent = 'Updated ' + date.toLocaleTimeString();
+          }
+        } else {
+          currentUrlDisplay.textContent = 'No URL published yet';
+          statusBadge.className = 'status-badge pending';
+          statusBadgeText.textContent = 'Empty';
+        }
+      }, (err) => {
+        console.error('Firestore listen error:', err);
+        currentUrlDisplay.textContent = 'Permission denied or network error';
+        statusBadge.className = 'status-badge error';
+        statusBadgeText.textContent = 'Firestore Error';
+        showFeedback('Firestore error: ' + err.message + ' (Check Firestore security rules)', 'error');
+      });
+    }
+
+    // Preset chip clicks
+    document.querySelectorAll('.preset-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        urlInput.value = btn.dataset.val;
+      });
+    });
+
+    // Paste button
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        urlInput.value = text.trim();
+      } catch (e) {
+        urlInput.focus();
+      }
+    });
+
+    // Test URL
+    testPingBtn.addEventListener('click', async () => {
+      let url = urlInput.value.trim();
+      if (!url) {
+        showFeedback('Please enter a URL first to test.', 'error');
+        return;
+      }
+      url = url.replace(/\/+$/, '');
+
+      testPingBtn.disabled = true;
+      testPingBtn.textContent = 'Pinging...';
+      showFeedback(`Testing connection to ${url}...`, 'info');
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`${url}/docs`, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+        clearTimeout(timeout);
+        showFeedback(`✅ Server responded! The URL is reachable.`, 'success');
+      } catch (err) {
+        showFeedback(`⚠️ Could not reach server directly (CORS or offline): ${err.message}. If this is a Cloudflare Tunnel, verify your Python server is running on port 8000.`, 'error');
+      } finally {
+        testPingBtn.disabled = false;
+        testPingBtn.textContent = '🔍 Test URL';
+      }
+    });
+
+    // Publish to Firestore
+    publishBtn.addEventListener('click', async () => {
+      if (!db) {
+        showFeedback('Please configure your Firebase credentials first.', 'error');
+        configModal.classList.add('active');
+        return;
+      }
+
+      let url = urlInput.value.trim();
+      if (!url) {
+        showFeedback('Please enter a valid URL to publish.', 'error');
+        return;
+      }
+
+      url = url.replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      publishBtn.disabled = true;
+      publishBtn.textContent = 'Publishing...';
+
+      try {
+        await db.collection('settings').doc('server').set({
+          desktop_url: url,
+          updated_at: Date.now(),
+          source: 'pc_portal',
+        });
+        showFeedback(`🎉 Published successfully! All mobile app instances will now connect to: ${url}`, 'success');
+      } catch (err) {
+        console.error('Publish error:', err);
+        showFeedback('Failed to publish to Firestore: ' + err.message + '. (Make sure Firestore Rules allow write!)', 'error');
+      } finally {
+        publishBtn.disabled = false;
+        publishBtn.textContent = '🚀 Publish to Mobile App';
+      }
+    });
+
+    // Config Modal events
+    openConfigBtn.addEventListener('click', () => {
+      cfgProjectId.value = localStorage.getItem('govform_fb_project_id') || '';
+      cfgApiKey.value = localStorage.getItem('govform_fb_api_key') || '';
+      configModal.classList.add('active');
+    });
+
+    closeConfigBtn.addEventListener('click', () => {
+      configModal.classList.remove('active');
+    });
+
+    saveConfigBtn.addEventListener('click', () => {
+      const pid = cfgProjectId.value.trim();
+      const key = cfgApiKey.value.trim();
+
+      if (!pid || !key) {
+        alert('Please fill in both Project ID and API Key.');
+        return;
+      }
+
+      localStorage.setItem('govform_fb_project_id', pid);
+      localStorage.setItem('govform_fb_api_key', key);
+      configModal.classList.remove('active');
+
+      showFeedback('Firebase credentials saved! Initializing connection...', 'info');
+      initFirebase();
+    });
+
+    // Init on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+    });
+  </script>
+</body>
+</html>

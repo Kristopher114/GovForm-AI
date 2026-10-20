@@ -14,8 +14,7 @@ import {
   isShowDraftsEnabled,
   ResearchSummary,
   setResearchEnabled,
-  setShowDraftsEnabled,
-  summaryLines,
+  setShowDraftsEnabled
 } from "@/utils/metrics";
 import {
   getOcrSettings,
@@ -23,17 +22,18 @@ import {
   saveDesktopIp,
   saveOcrMode,
 } from "@/utils/ocr-settings";
+import { syncRemoteServerUrl } from "@/utils/remote-config";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   Share,
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -74,6 +74,34 @@ export default function SettingsScreen() {
   const handleIpChange = (ip: string) => {
     setDesktopIp(ip);
     saveDesktopIp(ip);
+  };
+
+  const [isSyncingUrl, setIsSyncingUrl] = useState(false);
+
+  const handleCloudSync = async () => {
+    setIsSyncingUrl(true);
+    try {
+      const syncedUrl = await syncRemoteServerUrl();
+      if (syncedUrl) {
+        setDesktopIp(syncedUrl);
+        Alert.alert(
+          "Cloud Synced",
+          `Successfully updated Desktop URL to:\n${syncedUrl}`
+        );
+      } else {
+        Alert.alert(
+          "Sync Unavailable",
+          "No remote URL found in Firestore, or check your internet connection."
+        );
+      }
+    } catch (e) {
+      Alert.alert(
+        "Sync Error",
+        "Failed to sync: " + (e instanceof Error ? e.message : String(e))
+      );
+    } finally {
+      setIsSyncingUrl(false);
+    }
   };
 
   // ---- Research mode (for testers) ----
@@ -187,23 +215,23 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <TouchableOpacity
               style={[styles.languageOption, styles.borderBottom]}
-              onPress={() => handleModeChange("native")}
+              onPress={() => handleModeChange("desktop")}
             >
               <Text style={styles.languageText}>
-                Native ML-Kit (Fast, Offline)
+                Server 1 (Optimized)
               </Text>
-              {ocrMode === "native" && (
+              {ocrMode === "desktop" && (
                 <Ionicons name="checkmark-circle" size={24} color="#2182DE" />
               )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.languageOption}
-              onPress={() => handleModeChange("desktop")}
+              onPress={() => handleModeChange("native")}
             >
               <Text style={styles.languageText}>
-                Desktop Tesseract (Custom)
+                Server 2 (Default)
               </Text>
-              {ocrMode === "desktop" && (
+              {ocrMode === "native" && (
                 <Ionicons name="checkmark-circle" size={24} color="#2182DE" />
               )}
             </TouchableOpacity>
@@ -212,26 +240,47 @@ export default function SettingsScreen() {
 
         {ocrMode === "desktop" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Desktop Server / Tunnel URL</Text>
+            <Text style={styles.sectionTitle}>Server 1 (Optimized) Endpoint</Text>
             <View style={styles.card}>
-              <TextInput
-                style={styles.textInput}
-                value={desktopIp}
-                onChangeText={handleIpChange}
-                placeholder="e.g. https://...trycloudflare.com or 192.168.1.3"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
+              <View style={styles.serverStatusRow}>
+                <View style={styles.serverStatusInfo}>
+                  <Text style={styles.serverStatusLabel}>Cloud Synced URL</Text>
+                  <Text
+                    style={styles.serverStatusUrl}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {desktopIp || "No URL Synced Yet"}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.syncIconButton}
+                  onPress={handleCloudSync}
+                  disabled={isSyncingUrl}
+                  activeOpacity={0.7}
+                >
+                  {isSyncingUrl ? (
+                    <ActivityIndicator size="small" color="#2182DE" />
+                  ) : (
+                    <Ionicons
+                      name="cloud-download-outline"
+                      size={20}
+                      color="#2182DE"
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
+
             <Text style={styles.helperText}>
-              Enter your Cloudflare tunnel URL or local IP address. Ensure
-              local_ocr_server.py is running on your computer.
+              The server URL is dynamically synchronized from your PC portal via Firestore. Tap the cloud icon to sync immediately.
             </Text>
           </View>
         )}
 
+        {/* Research Mode section (commented out) */}
+        {/*
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("research_title")}</Text>
           <View style={styles.card}>
@@ -294,6 +343,7 @@ export default function SettingsScreen() {
             )}
           </View>
         </View>
+        */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -412,5 +462,38 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 8,
     lineHeight: 18,
+  },
+  serverStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  serverStatusInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  serverStatusLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  serverStatusUrl: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1A1A1A",
+  },
+  syncIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(33, 130, 222, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(33, 130, 222, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

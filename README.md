@@ -436,3 +436,27 @@ To test it on your device:
 - **Defensive Error Boundaries**: Wrapped activity result parsing in try-catch blocks to safely handle cancellation and discard events without triggering unhandled `IllegalStateException` crashes.
 - **Full Feature Google Scanner (`SCANNER_MODE_FULL`)**: Activated the full Google document scanner experience—delivering automatic corner boundary detection, interactive crop & rotate, perspective unwarping, blemish/shadow cleaning, and high-contrast text enhancement filters directly into the OCR pipeline.
 
+## Update: October 20, 2026 - Dynamic Cloudflare URL Sync & Server Settings Redesign
+
+### 1. Dynamic Server URL Dispatcher Portal (`server-portal.html`)
+- **Remote Configuration Solution**: Solved the issue of temporary Cloudflare tunnels (`*.trycloudflare.com`) changing URLs on every restart by building a dedicated, portable PC web portal (`server-portal.html`).
+- **Zero-Install Web App**: Developed as a standalone single-page application using modern glassmorphic styling, runnable in any browser (Chrome/Edge) without needing local build steps or npm installations.
+- **One-Click Publishing**: Allows users to paste new tunnel URLs (or choose quick presets like Hotspot `192.168.137.1:8000`), run connection ping tests, and publish the active endpoint straight to Google Cloud Firestore (`settings/server`).
+- **Browser Credentials Persistence**: Automatically saves Firebase credentials (`projectId`, `apiKey`) to the browser's `localStorage` so they only need to be entered once.
+
+### 2. Lightweight Firestore REST Sync (`src/utils/remote-config.ts`)
+- **Zero-Dependency Integration**: Implemented `fetchRemoteServerUrl` and `syncRemoteServerUrl` using Google's official Firestore REST API via native `fetch()`. This completely bypasses the need for heavy `@react-native-firebase` or Firebase JS SDK npm packages, protecting the app from build conflicts and keeping the APK bundle lightweight.
+- **Auto-Sync & Local Storage**: Automatically retrieves the latest endpoint from Firestore and syncs it into device `AsyncStorage` (`saveDesktopIp`).
+
+### 3. Server Settings Redesign & URL Input Removal (`src/app/(tabs)/settings.tsx`)
+- **Removed Manual URL Text Input**: Completely eliminated the manual text input field to prevent mobile typing errors and streamline configuration.
+- **Read-Only Synced Status Card**: Replaced the input field with a sleek "Cloud Synced URL" status card displaying the active endpoint and a 1-tap refresh button (`cloud-download-outline`) for immediate synchronization.
+- **Standardized Server Mode Naming**:
+  - **Server 1 (Optimized)**: Connects dynamically to the desktop Python server (FastAPI + OpenCV ORB + Tesseract) via the Cloudflare tunnel synced from Firestore.
+  - **Server 2 (Default)**: Uses fast, on-device offline Google ML Kit OCR.
+
+### 4. Permanent Form Draft Summaries & Research Mode Cleanup
+- **Streamlined UI**: Commented out the Research Mode toggle section in `settings.tsx` to maintain a clean, distraction-free settings screen for normal users.
+- **Permanently Enabled Draft Summaries**: Updated `src/utils/metrics.ts` (`canShowDraftSummaries` and `isShowDraftsEnabled`) to permanently return `true`, guaranteeing that all government form summaries and drafts remain accessible across the app without requiring manual research switches.
+
+
