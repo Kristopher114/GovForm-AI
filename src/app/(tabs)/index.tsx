@@ -1,7 +1,7 @@
 import AiDictionaryModal from '@/components/ai-dictionary-modal';
 import { useLocalization } from '@/context/LocalizationContext';
 import { getOcrSettings, saveOcrMode } from '@/utils/ocr-settings';
-import { runStartupHostWorkflow } from '@/utils/remote-config';
+import { formatServerUrl, runStartupHostWorkflow } from '@/utils/remote-config';
 import { saveRecentForm } from '@/utils/storage';
 import FormSummaryChip from '@/components/form-summary-sheet';
 import { HowToUseButton, HowToUseFirstLaunch } from '@/components/how-to-use-sheet';
@@ -204,14 +204,7 @@ export default function HomeScreen() {
       let visualFormType: string | undefined = undefined;
 
       if (ocrSettings.mode === 'desktop') {
-        let cleanIp = ocrSettings.desktopIp.trim();
-        if (cleanIp.endsWith('/')) {
-          cleanIp = cleanIp.slice(0, -1);
-        }
-
-        const baseUrl = cleanIp.toLowerCase().startsWith('http')
-          ? cleanIp
-          : `http://${cleanIp}:8000`;
+        const baseUrl = formatServerUrl(ocrSettings.desktopIp);
         const url = `${baseUrl}/predict`;
 
         try {

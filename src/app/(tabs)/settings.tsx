@@ -19,15 +19,17 @@ import {
 import {
   getOcrSettings,
   OcrMode,
-  saveDesktopIp,
-  saveOcrMode,
+  saveOcrMode
 } from "@/utils/ocr-settings";
-import { syncRemoteServerUrl } from "@/utils/remote-config";
+import {
+  checkPrimaryHostHealth,
+  formatServerUrl,
+  syncRemoteServerUrl
+} from "@/utils/remote-config";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   Share,
@@ -35,7 +37,7 @@ import {
   Switch,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -61,35 +63,11 @@ export default function SettingsScreen() {
   const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
 
   const checkServerStatus = useCallback(async (targetUrl?: string) => {
-    let url = (targetUrl || desktopIp).trim();
-    if (!url) {
-      setServerStatus("offline");
-      return;
-    }
-    url = url.replace(/\/+$/, "");
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      url = "https://" + url;
-    }
-
     setServerStatus("checking");
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-
-      const res = await fetch(`${url}/health`, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        setServerStatus("online");
-      } else {
-        setServerStatus(res.status < 500 ? "online" : "offline");
-      }
-    } catch {
+    const health = await checkPrimaryHostHealth(targetUrl || desktopIp);
+    if (health.isAvailable) {
+      setServerStatus("online");
+    } else {
       setServerStatus("offline");
     }
   }, [desktopIp]);
@@ -311,7 +289,7 @@ export default function SettingsScreen() {
                   Server 2 (Default)
                 </Text>
                 <View style={styles.statusPillNative}>
-                  <Text style={styles.statusPillTextNative}>Offline</Text>
+                  <Text style={styles.statusPillTextNative}>On-Device</Text>
                 </View>
               </View>
               {ocrMode === "native" && (
@@ -328,7 +306,7 @@ export default function SettingsScreen() {
               <View style={styles.serverStatusRow}>
                 <View style={styles.serverStatusInfo}>
                   <View style={styles.serverStatusHeader}>
-                    <Text style={styles.serverStatusLabel}>Cloud Synced URL</Text>
+                    <Text style={styles.serverStatusLabel}>Server Endpoint</Text>
                     <View
                       style={[
                         styles.statusDotSmall,
@@ -361,32 +339,24 @@ export default function SettingsScreen() {
                     numberOfLines={1}
                     ellipsizeMode="middle"
                   >
-                    {desktopIp || "No URL Synced Yet"}
+                    {formatServerUrl(desktopIp) || "No URL Synced Yet"}
                   </Text>
                 </View>
 
                 <TouchableOpacity
                   style={styles.syncIconButton}
-                  onPress={handleCloudSync}
-                  disabled={isSyncingUrl}
+                  onPress={() => checkServerStatus(desktopIp)}
                   activeOpacity={0.7}
+                  accessibilityLabel="Refresh server status"
                 >
-                  {isSyncingUrl ? (
-                    <ActivityIndicator size="small" color="#2182DE" />
-                  ) : (
-                    <Ionicons
-                      name="cloud-download-outline"
-                      size={20}
-                      color="#2182DE"
-                    />
-                  )}
+                  <Ionicons
+                    name="refresh-outline"
+                    size={20}
+                    color="#2182DE"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
-
-            <Text style={styles.helperText}>
-              The server URL is dynamically synchronized from your PC portal via Firestore. Tap the cloud icon to sync immediately.
-            </Text>
           </View>
         )}
 

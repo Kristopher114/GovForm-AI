@@ -12,6 +12,7 @@ import { getLargeTextSize, getOpenInLargeText, LargeTextSize, saveLargeTextSize 
 import { buildBoxesFromMlKit } from '@/utils/line-context';
 import { logEvent } from '@/utils/metrics';
 import { getOcrSettings, saveOcrMode } from '@/utils/ocr-settings';
+import { formatServerUrl } from '@/utils/remote-config';
 import { saveRecentForm } from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
@@ -368,14 +369,7 @@ export default function CameraOCRScreen() {
       let visualFormType: string | undefined = undefined;
 
       if (ocrSettings.mode === 'desktop') {
-        let cleanIp = ocrSettings.desktopIp.trim();
-        if (cleanIp.endsWith('/')) {
-          cleanIp = cleanIp.slice(0, -1);
-        }
-
-        const baseUrl = cleanIp.toLowerCase().startsWith('http')
-          ? cleanIp
-          : `http://${cleanIp}:8000`;
+        const baseUrl = formatServerUrl(ocrSettings.desktopIp);
         const url = `${baseUrl}/predict`;
 
         try {

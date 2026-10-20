@@ -82,6 +82,39 @@ export async function syncRemoteServerUrl(
   return null;
 }
 
+/**
+ * Normalizes a server URL or IP address:
+ * - If already starts with http:// or https://: preserves protocol and strips trailing slash.
+ * - If an IP address or localhost (e.g. 192.168.137.1, 10.0.2.2, localhost):
+ *   prepends http:// and adds port :8000 if no port is specified.
+ * - If a domain name (e.g. *.trycloudflare.com):
+ *   prepends https://.
+ */
+export function formatServerUrl(rawUrl?: string): string {
+  let url = (rawUrl || "").trim().replace(/\/+$/, "");
+  if (!url) return "";
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  // Detect IP address (e.g. 192.168.137.1 or 192.168.137.1:8000) or localhost
+  const isIpOrLocal =
+    /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(url) ||
+    url.startsWith("localhost") ||
+    url.startsWith("127.0.0.1");
+
+  if (isIpOrLocal) {
+    if (!url.includes(":")) {
+      url = `${url}:8000`;
+    }
+    return `http://${url}`;
+  }
+
+  // Domain name (e.g. Cloudflare tunnel)
+  return `https://${url}`;
+}
+
 export interface PrimaryHostHealth {
   isAvailable: boolean;
   url: string;
@@ -93,20 +126,17 @@ export interface PrimaryHostHealth {
  * Pings the primary processing host /health endpoint to verify connectivity.
  */
 export async function checkPrimaryHostHealth(targetUrl?: string): Promise<PrimaryHostHealth> {
-  let url = (targetUrl || "").trim();
-  if (!url) {
+  let rawUrl = (targetUrl || "").trim();
+  if (!rawUrl) {
     const settings = await getOcrSettings();
-    url = settings.desktopIp.trim();
+    rawUrl = settings.desktopIp.trim();
   }
 
-  if (!url) {
+  if (!rawUrl) {
     return { isAvailable: false, url: "", error: "No primary host URL configured" };
   }
 
-  url = url.replace(/\/+$/, "");
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
-  }
+  const url = formatServerUrl(rawUrl);
 
   try {
     const controller = new AbortController();
@@ -129,6 +159,26 @@ export async function checkPrimaryHostHealth(targetUrl?: string): Promise<Primar
       error: `Primary host returned status ${response.status}`,
     };
   } catch (e) {
+    // If it was an IP without an explicit port that failed on 8000, test 5000 as fallback
+    if (/^http:\/\/(\d{1,3}\.){3}\d{1,3}:8000$/.test(url)) {
+      const fallbackUrl = url.replace(':8000', ':5000');
+      try {
+        const controller2 = new AbortController();
+        const timeout2 = setTimeout(() => controller2.abort(), 2000);
+        const res2 = await fetch(`${fallbackUrl}/health`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: controller2.signal,
+        });
+        clearTimeout(timeout2);
+        if (res2.ok || (res2.status >= 200 && res2.status < 500)) {
+          return { isAvailable: true, url: fallbackUrl, statusCode: res2.status };
+        }
+      } catch {
+        // ignore fallback error
+      }
+    }
+
     return {
       isAvailable: false,
       url,
