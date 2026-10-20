@@ -459,4 +459,13 @@ To test it on your device:
 - **Streamlined UI**: Commented out the Research Mode toggle section in `settings.tsx` to maintain a clean, distraction-free settings screen for normal users.
 - **Permanently Enabled Draft Summaries**: Updated `src/utils/metrics.ts` (`canShowDraftSummaries` and `isShowDraftsEnabled`) to permanently return `true`, guaranteeing that all government form summaries and drafts remain accessible across the app without requiring manual research switches.
 
+### 5. Live Server Status Indicator & Health Checks (`local_ocr_server.py` & `settings.tsx`)
+- **FastAPI & Flask Health Endpoints**: Added dedicated `/health` routes returning `{"status": "online"}` across both `local_ocr_server.py` and `server.py` for lightweight, non-blocking health checks.
+- **Real-Time Visual Status Pill**: Integrated a dynamic status badge directly next to the **Server 1 (Optimized)** option in `src/app/(tabs)/settings.tsx`:
+  - 🟢 **Active**: Python server and Cloudflare tunnel are live and responding.
+  - 🔴 **Offline**: Connection timed out or server process is closed.
+  - 🟡 **Checking...**: Fast non-blocking ping in progress.
+- **Automated Health Triggers**: Background health checks trigger automatically upon entering the Settings screen (`useFocusEffect`), syncing from Firestore, or selecting Server 1.
+
+
 

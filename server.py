@@ -18,6 +18,11 @@ app = Flask(__name__)
 # Enable CORS so your React Native app can communicate with this API
 CORS(app)
 
+@app.route('/')
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "online", "engine": "server.py"})
+
 # Ensure there is an uploads folder to temporarily store photos sent from the phone
 # On Hugging Face, it's safer to save temp files to /tmp/uploads
 UPLOAD_FOLDER = '/tmp/uploads' if os.name != 'nt' else 'uploads'

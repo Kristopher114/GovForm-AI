@@ -57,23 +57,59 @@ export default function SettingsScreen() {
   };
   const [desktopIp, setDesktopIp] = useState("192.168.137.1");
 
+  type ServerStatus = "checking" | "online" | "offline";
+  const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
+
+  const checkServerStatus = useCallback(async (targetUrl?: string) => {
+    let url = (targetUrl || desktopIp).trim();
+    if (!url) {
+      setServerStatus("offline");
+      return;
+    }
+    url = url.replace(/\/+$/, "");
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+
+    setServerStatus("checking");
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
+      const res = await fetch(`${url}/health`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        setServerStatus("online");
+      } else {
+        setServerStatus(res.status < 500 ? "online" : "offline");
+      }
+    } catch {
+      setServerStatus("offline");
+    }
+  }, [desktopIp]);
+
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getOcrSettings();
       setOcrMode(settings.mode);
       setDesktopIp(settings.desktopIp);
+      checkServerStatus(settings.desktopIp);
     };
     loadSettings();
-  }, []);
+  }, [checkServerStatus]);
 
   const handleModeChange = (mode: OcrMode) => {
     setOcrMode(mode);
     saveOcrMode(mode);
-  };
-
-  const handleIpChange = (ip: string) => {
-    setDesktopIp(ip);
-    saveDesktopIp(ip);
+    if (mode === "desktop") {
+      checkServerStatus();
+    }
   };
 
   const [isSyncingUrl, setIsSyncingUrl] = useState(false);
@@ -84,6 +120,7 @@ export default function SettingsScreen() {
       const syncedUrl = await syncRemoteServerUrl();
       if (syncedUrl) {
         setDesktopIp(syncedUrl);
+        checkServerStatus(syncedUrl);
         Alert.alert(
           "Cloud Synced",
           `Successfully updated Desktop URL to:\n${syncedUrl}`
@@ -116,11 +153,12 @@ export default function SettingsScreen() {
     setSummary(enabled ? await getResearchSummary() : null);
   }, []);
 
-  // Reload the numbers every time this screen is opened.
+  // Reload status and numbers every time this screen is opened.
   useFocusEffect(
     useCallback(() => {
+      checkServerStatus();
       refreshResearch();
-    }, [refreshResearch]),
+    }, [checkServerStatus, refreshResearch]),
   );
 
   const handleResearchToggle = async (value: boolean) => {
@@ -217,9 +255,49 @@ export default function SettingsScreen() {
               style={[styles.languageOption, styles.borderBottom]}
               onPress={() => handleModeChange("desktop")}
             >
-              <Text style={styles.languageText}>
-                Server 1 (Optimized)
-              </Text>
+              <View style={styles.engineOptionLabel}>
+                <Text style={styles.languageText}>
+                  Server 1 (Optimized)
+                </Text>
+                <View
+                  style={[
+                    styles.statusPill,
+                    serverStatus === "online"
+                      ? styles.statusPillOnline
+                      : serverStatus === "checking"
+                        ? styles.statusPillChecking
+                        : styles.statusPillOffline,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDot,
+                      serverStatus === "online"
+                        ? styles.statusDotOnline
+                        : serverStatus === "checking"
+                          ? styles.statusDotChecking
+                          : styles.statusDotOffline,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      serverStatus === "online"
+                        ? styles.statusPillTextOnline
+                        : serverStatus === "checking"
+                          ? styles.statusPillTextChecking
+                          : styles.statusPillTextOffline,
+                    ]}
+                  >
+                    {serverStatus === "online"
+                      ? "Active"
+                      : serverStatus === "checking"
+                        ? "Checking..."
+                        : "Offline"}
+                  </Text>
+                </View>
+              </View>
+
               {ocrMode === "desktop" && (
                 <Ionicons name="checkmark-circle" size={24} color="#2182DE" />
               )}
@@ -228,9 +306,14 @@ export default function SettingsScreen() {
               style={styles.languageOption}
               onPress={() => handleModeChange("native")}
             >
-              <Text style={styles.languageText}>
-                Server 2 (Default)
-              </Text>
+              <View style={styles.engineOptionLabel}>
+                <Text style={styles.languageText}>
+                  Server 2 (Default)
+                </Text>
+                <View style={styles.statusPillNative}>
+                  <Text style={styles.statusPillTextNative}>Offline</Text>
+                </View>
+              </View>
               {ocrMode === "native" && (
                 <Ionicons name="checkmark-circle" size={24} color="#2182DE" />
               )}
@@ -244,7 +327,35 @@ export default function SettingsScreen() {
             <View style={styles.card}>
               <View style={styles.serverStatusRow}>
                 <View style={styles.serverStatusInfo}>
-                  <Text style={styles.serverStatusLabel}>Cloud Synced URL</Text>
+                  <View style={styles.serverStatusHeader}>
+                    <Text style={styles.serverStatusLabel}>Cloud Synced URL</Text>
+                    <View
+                      style={[
+                        styles.statusDotSmall,
+                        serverStatus === "online"
+                          ? styles.statusDotOnline
+                          : serverStatus === "checking"
+                            ? styles.statusDotChecking
+                            : styles.statusDotOffline,
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        serverStatus === "online"
+                          ? styles.statusPillTextOnline
+                          : serverStatus === "checking"
+                            ? styles.statusPillTextChecking
+                            : styles.statusPillTextOffline,
+                      ]}
+                    >
+                      {serverStatus === "online"
+                        ? "Running"
+                        : serverStatus === "checking"
+                          ? "Connecting..."
+                          : "Unreachable"}
+                    </Text>
+                  </View>
                   <Text
                     style={styles.serverStatusUrl}
                     numberOfLines={1}
@@ -495,5 +606,82 @@ const styles = StyleSheet.create({
     borderColor: "rgba(33, 130, 222, 0.3)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  engineOptionLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusPillOnline: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  statusPillOffline: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.25)",
+  },
+  statusPillChecking: {
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+  },
+  statusPillNative: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusPillTextNative: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#666",
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotOnline: {
+    backgroundColor: "#10B981",
+  },
+  statusDotOffline: {
+    backgroundColor: "#EF4444",
+  },
+  statusDotChecking: {
+    backgroundColor: "#F59E0B",
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusPillTextOnline: {
+    color: "#059669",
+  },
+  statusPillTextOffline: {
+    color: "#DC2626",
+  },
+  statusPillTextChecking: {
+    color: "#D97706",
+  },
+  serverStatusHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
   },
 });

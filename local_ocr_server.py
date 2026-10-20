@@ -26,6 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+@app.get("/health")
+def health_check():
+    return {"status": "online", "engine": "local_ocr_server"}
+
 # Initialize ORB for visual template matching
 orb = cv2.ORB_create(nfeatures=1000)
 TEMPLATES_DIR = "templates"
