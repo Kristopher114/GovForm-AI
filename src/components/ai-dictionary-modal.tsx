@@ -54,6 +54,7 @@ interface AiDictionaryModalProps {
   wordSentence: string | undefined; // the whole text block around the word
   wordLine?: string; // the single line of text the word is on
   wordOccurrence?: number; // 0 = first time this word appears on its line
+  formId?: string | null; // the identified government form ID or title
   onClose: () => void;
 }
 
@@ -91,6 +92,7 @@ export default function AiDictionaryModal({
   wordSentence,
   wordLine,
   wordOccurrence,
+  formId,
   onClose,
 }: AiDictionaryModalProps) {
   const { language, t } = useLocalization();
@@ -235,9 +237,11 @@ export default function AiDictionaryModal({
           wordSentence,
           language,
           controller.signal,
-          wordLine && wordLine.trim()
-            ? { line: wordLine, occurrence }
-            : undefined,
+          {
+            line: wordLine && wordLine.trim() ? wordLine : undefined,
+            occurrence,
+            formId: formId || undefined,
+          },
         );
         if (cancelled) return;
 

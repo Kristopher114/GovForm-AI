@@ -680,6 +680,7 @@ export default function CameraOCRScreen() {
           wordSentence={selectedWord ? selectedWord.sentence : undefined}
           wordLine={selectedWord ? selectedWord.line : undefined}
           wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
+          formId={detectedFormId}
           onClose={() => setSelectedWord(null)}
         />
       </SafeAreaView>

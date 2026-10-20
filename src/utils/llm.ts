@@ -1,3 +1,4 @@
+import { getFormById } from "@/utils/form-summaries";
 import { resolveTerm } from "@/utils/phrase-match";
 
 export interface LanguageDefinition {
@@ -203,6 +204,8 @@ const statusToCode = (status: number): LLMErrorCode => {
 export interface TapContext {
   line?: string; // the line of text the word is on
   occurrence?: number; // 0 = first time the word appears on that line, 1 = second, ...
+  formId?: string | null; // the identified government form ID or title (e.g. "philhealth-pmrf")
+  formName?: string | null; // optional explicit form display name
 }
 
 const buildPrompts = (
@@ -214,6 +217,26 @@ const buildPrompts = (
   const line = context?.line?.trim();
   const occurrence = context?.occurrence ?? 0;
 
+  // Retrieve form metadata if available for contextual grounding
+  const formInfo = getFormById(context?.formId);
+  const formName = formInfo?.form_name || context?.formName || context?.formId;
+  const formAgency = formInfo?.agency;
+  const formPurpose = formInfo?.summary?.en?.purpose;
+
+  let formGrounding = "";
+  if (formName && formName !== "UNKNOWN" && formName !== "none") {
+    formGrounding = ` Document Context: This word is from the Philippine government document "${formName}"`;
+    if (formAgency) {
+      formGrounding += ` issued by the ${formAgency}.`;
+    } else {
+      formGrounding += ".";
+    }
+    if (formPurpose) {
+      formGrounding += ` Form purpose: "${formPurpose}".`;
+    }
+    formGrounding += ` Use this government form context to accurately interpret the field, label, or agency-specific acronym (such as identification numbers or categories), but explain it in simple everyday words.`;
+  }
+
   let prompt: string;
   if (line) {
     const which =
@@ -224,11 +247,11 @@ const buildPrompts = (
       sentence && sentence.trim() && sentence.trim() !== line
         ? ` The surrounding text on the form is: "${sentence.trim()}".`
         : "";
-    prompt = `The person tapped the word "${word}"${which} on this line of a form: "${line}".${block} Find the form label or phrase that the tapped word belongs to and define that whole phrase. Please generate the output in ${language}.`;
+    prompt = `The person tapped the word "${word}"${which} on this line of a form: "${line}".${block}${formGrounding} Find the form label or phrase that the tapped word belongs to and define that whole phrase. Please generate the output in ${language}.`;
   } else if (sentence) {
-    prompt = `Define the word "${word}" in the context of this sentence: "${sentence}". Please generate the output in ${language}.`;
+    prompt = `Define the word "${word}" in the context of this sentence: "${sentence}".${formGrounding} Please generate the output in ${language}.`;
   } else {
-    prompt = `Define the word "${word}". Please generate the output in ${language}.`;
+    prompt = `Define the word "${word}".${formGrounding} Please generate the output in ${language}.`;
   }
 
   const systemPrompt = `You are a multilingual dictionary API that helps people understand words on Philippine government forms. You MUST output ONLY valid JSON in this exact structure:
@@ -244,10 +267,10 @@ Rules:
 - "term": the smallest complete form label or phrase on the line that the tapped word belongs to. For example, if the tapped word is "Date" on the line "Date of Birth", the term is "Date of Birth". It may include words before and after the tapped word. Copy it exactly as written on the line, and do NOT include other fields on the same line. If the tapped word stands alone, the term is the tapped word itself. Write the definitions, examples and synonyms about the whole TERM, not only about the single tapped word.
 - Use exactly the JSON keys shown above: "english", "tagalog" and "bisaya". Use the key "bisaya" for Bisaya/Cebuano.
 - You must ALWAYS provide all 3 languages (English, Tagalog, and Bisaya/Cebuano), each written in its own language.
-- "definition": a short, plain explanation of what the word means and, if it is a form field, what the person should write there. Use simple everyday words.
+- "definition": a short, plain explanation of what the word means in the context of this government form and, if it is a form field, what the person should write there. Use simple everyday words. Avoid legalistic jargon.
 - "example_sentence": a NEW sentence that shows how the word is used in everyday life. Do NOT translate or copy the document sentence. It must be natural, conversational, and casually spoken. Avoid overly formal or deep words.
 - "synonyms": 2 to 4 similar words or phrases in that same language.
-- "sample_data": ONLY if the word is a form field that asks the person to write something (for example Full Name, Birthdate, Address, Civil Status), give one clearly FAKE example entry, such as "Juan Santos Dela Cruz". Never use real people's details. If the word is not a fill-in field, return an empty string "".`;
+- "sample_data": ONLY if the word is a form field that asks the person to write something (for example Full Name, Birthdate, Address, Civil Status, or agency-specific ID number), give one clearly FAKE example entry that matches the format of that form (e.g. for PhilHealth PIN: "12-345678901-2", or for Name: "Juan Santos Dela Cruz"). Never use real people's details. If the word is not a fill-in field, return an empty string "".`;
 
   return { prompt, systemPrompt };
 };

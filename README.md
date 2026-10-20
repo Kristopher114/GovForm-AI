@@ -480,6 +480,16 @@ To test it on your device:
 - **Multilingual Service Alerts**:
   - Full translations for the service status notice across **English**, **Tagalog**, and **Cebuano** in `src/constants/translations.ts`.
 
+### 7. Form-Aware Contextual Grounding for Multilingual AI Dictionary (`llm.ts`)
+- **Semantic Grounding via Document Classification**:
+  - Connected the classification engine (`detectedFormId`) directly into the Groq Llama-3 dictionary prompt pipeline.
+  - Automatically queries `getFormById` from `form-summaries.json` to inject the official document name, issuing agency, and 1-sentence form purpose into the prompt context.
+- **Disambiguates Jargon & Acronyms**:
+  - Distinguishes agency-specific terms (e.g. PhilHealth "PIN" as *PhilHealth Identification Number* instead of a bank PIN, "Category" as member category, or Pag-IBIG "MID").
+- **Preserved Plain-Language Simplification**:
+  - Strict system rules ensure explanations remain short, natural, conversational, and free of bureaucratic/legalistic jargon across **English**, **Tagalog**, and **Bisaya/Cebuano**.
+  - Form-specific sample data generation (e.g., realistic fake PhilHealth ID format or complete names).
+
 
 
 

@@ -110,6 +110,7 @@ export default function FormDetailsScreen() {
         visible={selectedWordText !== null}
         wordText={selectedWordText}
         wordSentence={selectedWordSentence}
+        formId={form?.formId || form?.title}
         onClose={closeModal}
       />
     </SafeAreaView>
