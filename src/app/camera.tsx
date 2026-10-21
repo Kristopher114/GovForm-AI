@@ -1,27 +1,34 @@
-import AiDictionaryModal from '@/components/ai-dictionary-modal';
-import FormSummaryChip from '@/components/form-summary-sheet';
-import { HowToUseButton } from '@/components/how-to-use-sheet';
-import LargeTextView, { ViewMode, ViewModeSwitch } from '@/components/large-text-view';
-import { useLocalization } from '@/context/LocalizationContext';
+import AiDictionaryModal from "@/components/ai-dictionary-modal";
+import FormSummaryChip from "@/components/form-summary-sheet";
+import { HowToUseButton } from "@/components/how-to-use-sheet";
+import LargeTextView, {
+  ViewMode,
+  ViewModeSwitch,
+} from "@/components/large-text-view";
+import { useLocalization } from "@/context/LocalizationContext";
 import {
   detectFormTypeByKeywords,
   getFormDisplayName,
   getFormIdFromType,
-} from '@/utils/classification';
-import { getLargeTextSize, getOpenInLargeText, LargeTextSize, saveLargeTextSize } from '@/utils/large-text-settings';
-import { buildBoxesFromMlKit } from '@/utils/line-context';
-import { logEvent } from '@/utils/metrics';
-import { getOcrSettings, saveOcrMode } from '@/utils/ocr-settings';
-import { formatServerUrl } from '@/utils/remote-config';
-import { saveRecentForm } from '@/utils/storage';
-import { Ionicons } from '@expo/vector-icons';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+} from "@/utils/classification";
+import {
+  getLargeTextSize,
+  getOpenInLargeText,
+  LargeTextSize,
+  saveLargeTextSize,
+} from "@/utils/large-text-settings";
+import { buildBoxesFromMlKit } from "@/utils/line-context";
+import { logEvent } from "@/utils/metrics";
+import { getOcrSettings } from "@/utils/ocr-settings";
+import { saveRecentForm } from "@/utils/storage";
+import { Ionicons } from "@expo/vector-icons";
+import TextRecognition from "@react-native-ml-kit/text-recognition";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as FileSystem from "expo-file-system/legacy";
+import * as ImageManipulator from "expo-image-manipulator";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,17 +38,23 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import ExpoBlurDetector from '../../modules/expo-blur-detector/src/ExpoBlurDetectorModule';
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import ExpoBlurDetector from "../../modules/expo-blur-detector/src/ExpoBlurDetectorModule";
+
+const CARD_PAD = 8; // space between the card edge and the form image
 
 const ZOOM_PRESETS = [
-  { label: '1x', value: 0 },
-  { label: '1.2x', value: 0.05 },
-  { label: '1.5x', value: 0.1 },
-  { label: '2x', value: 0.18 },
+  { label: "1x", value: 0 },
+  { label: "1.2x", value: 0.05 },
+  { label: "1.5x", value: 0.1 },
+  { label: "2x", value: 0.18 },
 ];
 
 export interface BoundingBoxItem {
@@ -51,9 +64,9 @@ export interface BoundingBoxItem {
   line?: string;
   occurrence?: number;
   group?: number;
-  x: number;      // Original image pixel X
-  y: number;      // Original image pixel Y
-  width: number;  // Original image pixel width
+  x: number; // Original image pixel X
+  y: number; // Original image pixel Y
+  width: number; // Original image pixel width
   height: number; // Original image pixel height
 }
 
@@ -71,16 +84,30 @@ export default function CameraOCRScreen() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAutoScanning, setIsAutoScanning] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('Processing document with OCR...');
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Processing document with OCR...",
+  );
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBoxItem[]>([]);
-  const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(null);
+  const [selectedWord, setSelectedWord] = useState<BoundingBoxItem | null>(
+    null,
+  );
   const [detectedFormId, setDetectedFormId] = useState<string | null>(null);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('photo');
-  const [textSize, setTextSize] = useState<LargeTextSize>('medium');
+  const [viewMode, setViewMode] = useState<ViewMode>("photo");
+  const [textSize, setTextSize] = useState<LargeTextSize>("medium");
+  const [showOcrHighlights, setShowOcrHighlights] = useState(true);
+  const [showZoomHint, setShowZoomHint] = useState(false);
+
+  // Show the zoom hint briefly when a scan result appears
+  useEffect(() => {
+    if (!capturedImage) return;
+    setShowZoomHint(true);
+    const timer = setTimeout(() => setShowZoomHint(false), 4000);
+    return () => clearTimeout(timer);
+  }, [capturedImage]);
 
   const applyLargeTextPreference = async () => {
-    setViewMode((await getOpenInLargeText()) ? 'text' : 'photo');
+    setViewMode((await getOpenInLargeText()) ? "text" : "photo");
     setTextSize(await getLargeTextSize());
   };
 
@@ -90,7 +117,10 @@ export default function CameraOCRScreen() {
   };
 
   // Card Layout Dimensions for scaling coordinates
-  const [cardLayout, setCardLayout] = useState<{ width: number; height: number }>({
+  const [cardLayout, setCardLayout] = useState<{
+    width: number;
+    height: number;
+  }>({
     width: 0,
     height: 0,
   });
@@ -110,25 +140,42 @@ export default function CameraOCRScreen() {
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
 
+  // Keep the zoomed image inside the card: max pan = half of the extra size
+  const cardW = useSharedValue(0);
+  const cardH = useSharedValue(0);
+  const clampPan = (v: number, size: number) => {
+    "worklet";
+    const max = (size * (scale.value - 1)) / 2;
+    return Math.min(Math.max(v, -max), max);
+  };
+
   const pinchGesture = Gesture.Pinch()
     .onUpdate((e) => {
-      scale.value = Math.max(1, savedScale.value * e.scale);
+      scale.value = Math.min(Math.max(1, savedScale.value * e.scale), 6);
+      translateX.value = clampPan(translateX.value, cardW.value);
+      translateY.value = clampPan(translateY.value, cardH.value);
     })
     .onEnd(() => {
       savedScale.value = scale.value;
       if (scale.value <= 1) {
         translateX.value = 0;
         translateY.value = 0;
-        savedTranslateX.value = 0;
-        savedTranslateY.value = 0;
       }
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
     });
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       if (scale.value > 1) {
-        translateX.value = savedTranslateX.value + e.translationX;
-        translateY.value = savedTranslateY.value + e.translationY;
+        translateX.value = clampPan(
+          savedTranslateX.value + e.translationX,
+          cardW.value,
+        );
+        translateY.value = clampPan(
+          savedTranslateY.value + e.translationY,
+          cardH.value,
+        );
       }
     })
     .onEnd(() => {
@@ -154,7 +201,7 @@ export default function CameraOCRScreen() {
 
   const composedGesture = Gesture.Simultaneous(
     doubleTapGesture,
-    Gesture.Simultaneous(pinchGesture, panGesture)
+    Gesture.Simultaneous(pinchGesture, panGesture),
   );
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -201,31 +248,38 @@ export default function CameraOCRScreen() {
     try {
       setIsAutoScanning(true);
       setIsProcessing(true);
-      setLoadingMessage('Opening Document Scanner...');
+      setLoadingMessage("Opening Document Scanner...");
 
       // Small tick delay to let React unmount CameraView and release camera hardware & touch focus
       await new Promise((resolve) => setTimeout(resolve, 150));
 
-      if (typeof ExpoBlurDetector.scanDocument === 'function') {
+      if (typeof ExpoBlurDetector.scanDocument === "function") {
         const result = await ExpoBlurDetector.scanDocument({
-          mode: 'full', // Full Google Document Scanner UI: auto/manual capture, crop & rotate, filters & save
+          mode: "full", // Full Google Document Scanner UI: auto/manual capture, crop & rotate, filters & save
           galleryImportAllowed: false, // 🚫 Permanently disables the gallery button
           maxNumDocuments: 1,
         });
 
-        if (result && result.status === 'success' && result.scannedImages && result.scannedImages.length > 0) {
-          setLoadingMessage('Optimizing document...');
+        if (
+          result &&
+          result.status === "success" &&
+          result.scannedImages &&
+          result.scannedImages.length > 0
+        ) {
+          setLoadingMessage("Optimizing document...");
           const scannedUri = result.scannedImages[0];
 
           let manipResult = await ImageManipulator.manipulateAsync(
             scannedUri,
             [{ resize: { width: 1800 } }],
-            { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
+            { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG },
           );
 
           try {
-            if (typeof ExpoBlurDetector.sharpenImage === 'function') {
-              const enhancedUri = await ExpoBlurDetector.sharpenImage(manipResult.uri);
+            if (typeof ExpoBlurDetector.sharpenImage === "function") {
+              const enhancedUri = await ExpoBlurDetector.sharpenImage(
+                manipResult.uri,
+              );
               if (enhancedUri && enhancedUri !== manipResult.uri) {
                 manipResult = {
                   uri: enhancedUri,
@@ -235,7 +289,7 @@ export default function CameraOCRScreen() {
               }
             }
           } catch (enhErr) {
-            console.warn('Text enhancement skipped:', enhErr);
+            console.warn("Text enhancement skipped:", enhErr);
           }
 
           setCapturedImage({
@@ -244,17 +298,25 @@ export default function CameraOCRScreen() {
             height: manipResult.height,
           });
 
-          await processCapturedPhoto(manipResult.uri, manipResult.width, manipResult.height);
+          await processCapturedPhoto(
+            manipResult.uri,
+            manipResult.width,
+            manipResult.height,
+          );
         }
       } else {
         Alert.alert(
-          'Scanner Unavailable',
-          'Auto document scanner requires an Android device with Google Play Services. You can use the manual shutter below.'
+          "Scanner Unavailable",
+          "Auto document scanner requires an Android device with Google Play Services. You can use the manual shutter below.",
         );
       }
     } catch (err) {
-      console.error('Auto scan error:', err);
-      Alert.alert('Scanner Error', 'Failed to scan document: ' + (err instanceof Error ? err.message : String(err)));
+      console.error("Auto scan error:", err);
+      Alert.alert(
+        "Scanner Error",
+        "Failed to scan document: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsAutoScanning(false);
       setIsProcessing(false);
@@ -266,25 +328,28 @@ export default function CameraOCRScreen() {
 
     try {
       setIsProcessing(true);
-      setLoadingMessage('Capturing photo...');
+      setLoadingMessage("Capturing photo...");
 
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.9,
       });
 
       if (!photo || !photo.uri) {
-        Alert.alert('Capture Failed', 'Could not capture photo from camera.');
+        Alert.alert("Capture Failed", "Could not capture photo from camera.");
         setIsProcessing(false);
         return;
       }
 
-      setLoadingMessage('Optimizing image...');
+      setLoadingMessage("Optimizing image...");
 
       // 1. Auto-orient: If camera sensor captured landscape (width > height) while holding portrait, rotate 90° CW
       const actions: ImageManipulator.Action[] = [];
-      const isLandscape = photo.width && photo.height && photo.width > photo.height;
+      const isLandscape =
+        photo.width && photo.height && photo.width > photo.height;
       if (isLandscape) {
-        console.log('🔄 Auto-rotating landscape camera capture to upright portrait (90° CW)');
+        console.log(
+          "🔄 Auto-rotating landscape camera capture to upright portrait (90° CW)",
+        );
         actions.push({ rotate: 90 });
       }
 
@@ -294,14 +359,16 @@ export default function CameraOCRScreen() {
       let manipResult = await ImageManipulator.manipulateAsync(
         photo.uri,
         actions,
-        { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG },
       );
 
       // 3. Document text contrast enhancement (if native module available)
       try {
-        if (typeof ExpoBlurDetector.sharpenImage === 'function') {
-          setLoadingMessage('Enhancing text sharpness...');
-          const enhancedUri = await ExpoBlurDetector.sharpenImage(manipResult.uri);
+        if (typeof ExpoBlurDetector.sharpenImage === "function") {
+          setLoadingMessage("Enhancing text sharpness...");
+          const enhancedUri = await ExpoBlurDetector.sharpenImage(
+            manipResult.uri,
+          );
           if (enhancedUri && enhancedUri !== manipResult.uri) {
             manipResult = {
               uri: enhancedUri,
@@ -311,7 +378,7 @@ export default function CameraOCRScreen() {
           }
         }
       } catch (enhErr) {
-        console.warn('Text enhancement skipped:', enhErr);
+        console.warn("Text enhancement skipped:", enhErr);
       }
 
       setCapturedImage({
@@ -321,92 +388,102 @@ export default function CameraOCRScreen() {
       });
 
       // Blur detection check
-      setLoadingMessage('Checking image quality...');
+      setLoadingMessage("Checking image quality...");
       try {
         const blurScore = await ExpoBlurDetector.getBlurScore(manipResult.uri);
-        console.log('📷 Camera blur score:', blurScore);
+        console.log("📷 Camera blur score:", blurScore);
         if (blurScore > 0 && blurScore < 60.0) {
           Alert.alert(
-            'Image Blurry',
-            'The captured photo may be blurry. Would you like to retake or process anyway?',
+            "Image Blurry",
+            "The captured photo may be blurry. Would you like to retake or process anyway?",
             [
               {
-                text: 'Retake',
-                style: 'cancel',
+                text: "Retake",
+                style: "cancel",
                 onPress: () => {
                   setCapturedImage(null);
                   setIsProcessing(false);
                 },
               },
               {
-                text: 'Process Anyway',
-                onPress: () => processCapturedPhoto(manipResult.uri, manipResult.width, manipResult.height),
+                text: "Process Anyway",
+                onPress: () =>
+                  processCapturedPhoto(
+                    manipResult.uri,
+                    manipResult.width,
+                    manipResult.height,
+                  ),
               },
-            ]
+            ],
           );
           return;
         }
       } catch (blurErr) {
-        console.warn('Blur detection check skipped due to error:', blurErr);
+        console.warn("Blur detection check skipped due to error:", blurErr);
       }
 
-      await processCapturedPhoto(manipResult.uri, manipResult.width, manipResult.height);
+      await processCapturedPhoto(
+        manipResult.uri,
+        manipResult.width,
+        manipResult.height,
+      );
     } catch (err) {
-      console.error('Camera capture error:', err);
-      Alert.alert('Error', 'Failed to capture photo: ' + (err instanceof Error ? err.message : String(err)));
+      console.error("Camera capture error:", err);
+      Alert.alert(
+        "Error",
+        "Failed to capture photo: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
       setCapturedImage(null);
       setIsProcessing(false);
     }
   };
 
-  const processCapturedPhoto = async (photoUri: string, imgWidth: number, imgHeight: number) => {
+  const processCapturedPhoto = async (
+    photoUri: string,
+    imgWidth: number,
+    imgHeight: number,
+  ) => {
     try {
       setIsProcessing(true);
-      setLoadingMessage('Recognizing text with OCR...');
+      setLoadingMessage("Recognizing text with OCR...");
 
       const ocrSettings = await getOcrSettings();
       let data: BoundingBoxItem[] = [];
       let visualFormType: string | undefined = undefined;
 
-      if (ocrSettings.mode === 'desktop') {
-        const baseUrl = formatServerUrl(ocrSettings.desktopIp);
+      if (ocrSettings.mode === "desktop") {
+        let cleanIp = ocrSettings.desktopIp.trim();
+        if (cleanIp.endsWith("/")) {
+          cleanIp = cleanIp.slice(0, -1);
+        }
+
+        const baseUrl = cleanIp.toLowerCase().startsWith("http")
+          ? cleanIp
+          : `http://${cleanIp}:8000`;
         const url = `${baseUrl}/predict`;
+        const response = await FileSystem.uploadAsync(url, photoUri, {
+          fieldName: "file",
+          httpMethod: "POST",
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        });
 
-        try {
-          const response = await FileSystem.uploadAsync(url, photoUri, {
-            fieldName: 'file',
-            httpMethod: 'POST',
-            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-          });
-
-          if (response.status === 200) {
-            const result = JSON.parse(response.body);
-            if (result.formType && result.formType !== 'UNKNOWN') {
-              visualFormType = result.formType;
-            }
-            data = result.boxes.map((box: any) => ({
-              text: box.text,
-              sentence: box.text,
-              line: box.text,
-              x: box.x,
-              y: box.y,
-              width: box.width,
-              height: box.height,
-            }));
-          } else {
-            throw new Error('Desktop OCR failed with status ' + response.status);
+        if (response.status === 200) {
+          const result = JSON.parse(response.body);
+          if (result.formType && result.formType !== "UNKNOWN") {
+            visualFormType = result.formType;
           }
-        } catch (serverErr) {
-          console.warn('Primary processing host failed during camera capture, falling back to on-device Google ML Kit:', serverErr);
-          Alert.alert(
-            t("service_status_notice_title"),
-            t("service_status_fallback_scan_msg"),
-            [{ text: "OK" }]
-          );
-          await saveOcrMode('native');
-          setLoadingMessage('Processing with on-device Google ML Kit fallback...');
-          const result = await TextRecognition.recognize(photoUri);
-          data.push(...buildBoxesFromMlKit(result.blocks));
+          data = result.boxes.map((box: any) => ({
+            text: box.text,
+            sentence: box.text,
+            line: box.text,
+            x: box.x,
+            y: box.y,
+            width: box.width,
+            height: box.height,
+          }));
+        } else {
+          throw new Error("Desktop OCR failed with status " + response.status);
         }
       } else {
         // Local ML Kit OCR
@@ -420,16 +497,16 @@ export default function CameraOCRScreen() {
 
       // Document Classification (Keyword-first hierarchy)
       try {
-        const fullText = data.map((b) => b.text).join(' ');
+        const fullText = data.map((b) => b.text).join(" ");
         const keywordType = detectFormTypeByKeywords(fullText);
 
-        let formType = 'UNKNOWN';
-        if (keywordType !== 'UNKNOWN') {
+        let formType = "UNKNOWN";
+        if (keywordType !== "UNKNOWN") {
           formType = keywordType;
-          console.log('Keyword classified form as:', formType);
-        } else if (visualFormType && visualFormType !== 'UNKNOWN') {
+          console.log("Keyword classified form as:", formType);
+        } else if (visualFormType && visualFormType !== "UNKNOWN") {
           formType = visualFormType;
-          console.log('Visual OpenCV classified form as:', formType);
+          console.log("Visual OpenCV classified form as:", formType);
         }
 
         const formId = getFormIdFromType(formType);
@@ -438,20 +515,22 @@ export default function CameraOCRScreen() {
         saveRecentForm(
           photoUri,
           data,
-          displayTitle !== 'Scanned Document' ? displayTitle : undefined
-        ).catch((err) => console.log('Failed to save to recents', err));
+          displayTitle !== "Scanned Document" ? displayTitle : undefined,
+        ).catch((err) => console.log("Failed to save to recents", err));
 
         setDetectedFormId(formId);
-        logEvent({ event: 'scan', detail: formId ?? undefined });
+        logEvent({ event: "scan", detail: formId ?? undefined });
       } catch (err) {
-        saveRecentForm(photoUri, data).catch((err) => console.log('Failed to save to recents', err));
+        saveRecentForm(photoUri, data).catch((err) =>
+          console.log("Failed to save to recents", err),
+        );
       }
     } catch (error) {
-      console.error('ML Kit OCR Processing Error:', error);
+      console.error("ML Kit OCR Processing Error:", error);
       Alert.alert(
-        'Processing Error',
-        'Could not run text recognition locally. Details: ' +
-          (error instanceof Error ? error.message : String(error))
+        "Processing Error",
+        "Could not run text recognition locally. Details: " +
+          (error instanceof Error ? error.message : String(error)),
       );
       setCapturedImage(null);
     } finally {
@@ -482,16 +561,16 @@ export default function CameraOCRScreen() {
 
     try {
       setIsProcessing(true);
-      setLoadingMessage('Rotating document & re-analyzing...');
+      setLoadingMessage("Rotating document & re-analyzing...");
 
       let rotated = await ImageManipulator.manipulateAsync(
         capturedImage.uri,
         [{ rotate: 90 }],
-        { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG },
       );
 
       try {
-        if (typeof ExpoBlurDetector.sharpenImage === 'function') {
+        if (typeof ExpoBlurDetector.sharpenImage === "function") {
           const enhancedUri = await ExpoBlurDetector.sharpenImage(rotated.uri);
           if (enhancedUri && enhancedUri !== rotated.uri) {
             rotated = {
@@ -502,7 +581,7 @@ export default function CameraOCRScreen() {
           }
         }
       } catch (enhErr) {
-        console.warn('Text enhancement on rotate skipped:', enhErr);
+        console.warn("Text enhancement on rotate skipped:", enhErr);
       }
 
       setCapturedImage({
@@ -513,8 +592,12 @@ export default function CameraOCRScreen() {
 
       await processCapturedPhoto(rotated.uri, rotated.width, rotated.height);
     } catch (err) {
-      console.error('Rotate error:', err);
-      Alert.alert('Error', 'Failed to rotate image: ' + (err instanceof Error ? err.message : String(err)));
+      console.error("Rotate error:", err);
+      Alert.alert(
+        "Error",
+        "Failed to rotate image: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
       setIsProcessing(false);
     }
   };
@@ -522,6 +605,8 @@ export default function CameraOCRScreen() {
   const handleCardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setCardLayout({ width, height });
+    cardW.value = width;
+    cardH.value = height;
   };
 
   // 1. Camera Permission checks
@@ -536,15 +621,27 @@ export default function CameraOCRScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={64} color="#2182DE" style={{ marginBottom: 16 }} />
+        <Ionicons
+          name="camera-outline"
+          size={64}
+          color="#2182DE"
+          style={{ marginBottom: 16 }}
+        />
         <Text style={styles.permissionTitle}>Camera Permission Required</Text>
         <Text style={styles.permissionText}>
-          GovForm-AI needs camera access to capture documents and recognize their text.
+          GovForm-AI needs camera access to capture documents and recognize
+          their text.
         </Text>
-        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={requestPermission}
+        >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.permissionCancelButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.permissionCancelButton}
+          onPress={() => router.back()}
+        >
           <Text style={styles.permissionCancelText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -557,7 +654,7 @@ export default function CameraOCRScreen() {
       <SafeAreaView style={styles.loadingScreenContainer}>
         <View style={styles.loadingCenterBox}>
           <LinearGradient
-            colors={['#E5E5E5', '#1A1A1A']}
+            colors={["#E5E5E5", "#1A1A1A"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.progressBar}
@@ -574,9 +671,13 @@ export default function CameraOCRScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.previewHeaderContainer}>
-          <Text style={styles.title}>{t('app_title')}</Text>
+          <Text style={styles.title}>{t("app_title")}</Text>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity onPress={handleRotateImage} style={styles.rotateButton} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={handleRotateImage}
+              style={styles.rotateButton}
+              activeOpacity={0.7}
+            >
               <Ionicons name="refresh" size={17} color="#2182DE" />
               <Text style={styles.rotateButtonText}>Rotate 90°</Text>
             </TouchableOpacity>
@@ -590,15 +691,14 @@ export default function CameraOCRScreen() {
           <FormSummaryChip detectedFormId={detectedFormId} />
         </View>
 
-        <View style={styles.howToRow}>
+        <View style={styles.controlsRow}>
           <HowToUseButton section="results" />
+          <View style={styles.viewModeSwitchWrap}>
+            <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
+          </View>
         </View>
 
-        <View style={styles.viewModeRow}>
-          <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
-        </View>
-
-        {viewMode === 'text' ? (
+        {viewMode === "text" ? (
           <View style={styles.previewCardContainer}>
             <LargeTextView
               boxes={boundingBoxes}
@@ -612,7 +712,13 @@ export default function CameraOCRScreen() {
           <View style={styles.previewCardContainer}>
             <View style={styles.darkCard} onLayout={handleCardLayout}>
               <GestureDetector gesture={composedGesture}>
-                <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    animatedStyle,
+                    { padding: CARD_PAD },
+                  ]}
+                >
                   <Image
                     source={{ uri: capturedImage.uri }}
                     style={styles.documentImage}
@@ -623,22 +729,23 @@ export default function CameraOCRScreen() {
                   {cardLayout.width > 0 &&
                     cardLayout.height > 0 &&
                     (() => {
-                      const containerW = cardLayout.width;
-                      const containerH = cardLayout.height;
-                      const imgAspect = capturedImage.width / capturedImage.height;
+                      const containerW = cardLayout.width - CARD_PAD * 2;
+                      const containerH = cardLayout.height - CARD_PAD * 2;
+                      const imgAspect =
+                        capturedImage.width / capturedImage.height;
                       const containerAspect = containerW / containerH;
 
                       let displayedW = containerW;
                       let displayedH = containerH;
-                      let offsetX = 0;
-                      let offsetY = 0;
+                      let offsetX = CARD_PAD;
+                      let offsetY = CARD_PAD;
 
                       if (containerAspect > imgAspect) {
                         displayedW = containerH * imgAspect;
-                        offsetX = (containerW - displayedW) / 2;
+                        offsetX = CARD_PAD + (containerW - displayedW) / 2;
                       } else {
                         displayedH = containerW / imgAspect;
-                        offsetY = (containerH - displayedH) / 2;
+                        offsetY = CARD_PAD + (containerH - displayedH) / 2;
                       }
 
                       const scaleVal = displayedW / capturedImage.width;
@@ -660,7 +767,10 @@ export default function CameraOCRScreen() {
                             style={[
                               styles.boundingBox,
                               boxStyle,
-                              isSelected && styles.selectedBoundingBox,
+                              !showOcrHighlights && styles.hiddenBoundingBox,
+                              showOcrHighlights &&
+                                isSelected &&
+                                styles.selectedBoundingBox,
                             ]}
                             onPress={() => setSelectedWord(item)}
                           />
@@ -669,6 +779,26 @@ export default function CameraOCRScreen() {
                     })()}
                 </Animated.View>
               </GestureDetector>
+              {showZoomHint && (
+                <View style={styles.zoomHint} pointerEvents="none">
+                  <Text style={styles.zoomHintText}>Double-tap to zoom</Text>
+                </View>
+              )}
+              {/* Floating toggle: stays fixed on the card, does not zoom */}
+              <TouchableOpacity
+                style={styles.highlightToggleButton}
+                onPress={() => setShowOcrHighlights((previous) => !previous)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={showOcrHighlights ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color="#FFF"
+                />
+                <Text style={styles.highlightToggleText}>
+                  {showOcrHighlights ? "Hide Highlights" : "Show Highlights"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -680,7 +810,6 @@ export default function CameraOCRScreen() {
           wordSentence={selectedWord ? selectedWord.sentence : undefined}
           wordLine={selectedWord ? selectedWord.line : undefined}
           wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
-          formId={detectedFormId}
           onClose={() => setSelectedWord(null)}
         />
       </SafeAreaView>
@@ -698,7 +827,7 @@ export default function CameraOCRScreen() {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.replace('/');
+              router.replace("/");
             }
           }}
         >
@@ -724,13 +853,16 @@ export default function CameraOCRScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.cameraIconButton, torch && styles.cameraIconButtonActive]}
+            style={[
+              styles.cameraIconButton,
+              torch && styles.cameraIconButtonActive,
+            ]}
             onPress={() => setTorch(!torch)}
           >
             <Ionicons
-              name={torch ? 'flash' : 'flash-outline'}
+              name={torch ? "flash" : "flash-outline"}
               size={22}
-              color={torch ? '#000' : '#FFF'}
+              color={torch ? "#000" : "#FFF"}
             />
           </TouchableOpacity>
         </View>
@@ -739,7 +871,10 @@ export default function CameraOCRScreen() {
       {/* 4:3 Viewfinder Container with pinch-to-zoom gesture */}
       <View style={styles.viewfinderWrapper}>
         <GestureDetector gesture={pinchCameraGesture}>
-          <View style={styles.viewfinder43} pointerEvents={isAutoScanning ? 'none' : 'auto'}>
+          <View
+            style={styles.viewfinder43}
+            pointerEvents={isAutoScanning ? "none" : "auto"}
+          >
             {!isAutoScanning && (
               <CameraView
                 ref={cameraRef}
@@ -757,7 +892,9 @@ export default function CameraOCRScreen() {
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
-              <Text style={styles.frameGuideText}>Align document within the frame</Text>
+              <Text style={styles.frameGuideText}>
+                Align document within the frame
+              </Text>
             </View>
           </View>
         </GestureDetector>
@@ -772,11 +909,19 @@ export default function CameraOCRScreen() {
             return (
               <TouchableOpacity
                 key={preset.label}
-                style={[styles.zoomPresetButton, isActive && styles.zoomPresetButtonActive]}
+                style={[
+                  styles.zoomPresetButton,
+                  isActive && styles.zoomPresetButtonActive,
+                ]}
                 onPress={() => handleSetZoom(preset.value)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.zoomPresetText, isActive && styles.zoomPresetTextActive]}>
+                <Text
+                  style={[
+                    styles.zoomPresetText,
+                    isActive && styles.zoomPresetTextActive,
+                  ]}
+                >
                   {preset.label}
                 </Text>
               </TouchableOpacity>
@@ -787,7 +932,10 @@ export default function CameraOCRScreen() {
         {/* Bottom Bar: Zoom Controls & Manual Shutter Button */}
         <View style={styles.shutterRow}>
           <TouchableOpacity
-            style={[styles.scannerSwitchButton, isProcessing && styles.captureDisabled]}
+            style={[
+              styles.scannerSwitchButton,
+              isProcessing && styles.captureDisabled,
+            ]}
             onPress={handleAutoScan}
             disabled={isProcessing}
             activeOpacity={0.7}
@@ -797,7 +945,10 @@ export default function CameraOCRScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.captureOuterRing, isProcessing && styles.captureDisabled]}
+            style={[
+              styles.captureOuterRing,
+              isProcessing && styles.captureDisabled,
+            ]}
             onPress={handleCapture}
             disabled={isProcessing}
             activeOpacity={0.7}
@@ -812,7 +963,9 @@ export default function CameraOCRScreen() {
           <View style={styles.shutterSpacer} />
         </View>
 
-        <Text style={styles.cameraHintText}>Tap Auto for auto-capture • Or Shutter for manual</Text>
+        <Text style={styles.cameraHintText}>
+          Tap Auto for auto-capture • Or Shutter for manual
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -821,77 +974,77 @@ export default function CameraOCRScreen() {
 const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'space-between',
+    backgroundColor: "#000",
+    justifyContent: "space-between",
   },
   cameraTopBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   cameraHeaderCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   cameraHeaderTitle: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   ratioBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   ratioBadgeText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   cameraIconButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   cameraIconButtonActive: {
-    backgroundColor: '#FFCC00',
+    backgroundColor: "#FFCC00",
   },
   viewfinderWrapper: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   viewfinder43: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 3 / 4,
-    maxHeight: '74%',
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#111',
-    justifyContent: 'center',
-    alignItems: 'center',
+    maxHeight: "74%",
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#111",
+    justifyContent: "center",
+    alignItems: "center",
   },
   frameGuideBox: {
-    width: '88%',
-    height: '90%',
-    position: 'relative',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    width: "88%",
+    height: "90%",
+    position: "relative",
+    justifyContent: "flex-end",
+    alignItems: "center",
     paddingBottom: 16,
   },
   corner: {
-    position: 'absolute',
+    position: "absolute",
     width: 32,
     height: 32,
-    borderColor: '#FFFFFF',
+    borderColor: "#FFFFFF",
   },
   cornerTL: {
     top: 0,
@@ -922,24 +1075,24 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   frameGuideText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 13,
-    fontWeight: '500',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    fontWeight: "500",
+    backgroundColor: "rgba(0,0,0,0.6)",
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 14,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   cameraBottomBar: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: 24,
     paddingTop: 8,
   },
   zoomControlRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 20,
     padding: 3,
     marginBottom: 16,
@@ -950,71 +1103,71 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   zoomPresetButtonActive: {
-    backgroundColor: '#2182DE',
+    backgroundColor: "#2182DE",
   },
   zoomPresetText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.7)",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   zoomPresetTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: "#FFF",
+    fontWeight: "700",
   },
   shutterRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 10,
     paddingHorizontal: 20,
-    position: 'relative',
+    position: "relative",
   },
   scannerSwitchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: 'rgba(33, 130, 222, 0.2)',
+    backgroundColor: "rgba(33, 130, 222, 0.2)",
     borderWidth: 1.5,
-    borderColor: '#2182DE',
+    borderColor: "#2182DE",
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    position: 'absolute',
+    position: "absolute",
     left: 24,
   },
   scannerSwitchText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   shutterSpacer: {
     width: 60,
   },
   autoScanPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
-    backgroundColor: '#2182DE',
+    backgroundColor: "#2182DE",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 14,
     marginRight: 6,
   },
   autoScanPillText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   captureOuterRing: {
     width: 80,
     height: 80,
     borderRadius: 40,
     borderWidth: 4,
-    borderColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   captureDisabled: {
     opacity: 0.5,
@@ -1023,116 +1176,116 @@ const styles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   cameraHintText: {
-    color: '#888',
+    color: "#888",
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F9F9F9",
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
   permissionTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   permissionText: {
     fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
   },
   permissionButton: {
-    backgroundColor: '#2182DE',
+    backgroundColor: "#2182DE",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 14,
   },
   permissionButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   permissionCancelButton: {
     marginTop: 16,
     paddingVertical: 8,
   },
   permissionCancelText: {
-    color: '#888',
+    color: "#888",
     fontSize: 15,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: "#F9F9F9",
   },
   loadingScreenContainer: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F9F9F9",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingCenterBox: {
-    width: '80%',
-    alignItems: 'center',
+    width: "80%",
+    alignItems: "center",
   },
   progressBar: {
-    width: '100%',
+    width: "100%",
     height: 24,
     borderRadius: 12,
     marginBottom: 24,
   },
   loadingTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontWeight: "bold",
+    color: "#1A1A1A",
     marginBottom: 8,
   },
   loadingSubtitle: {
     fontSize: 15,
-    color: '#666666',
-    textAlign: 'center',
+    color: "#666666",
+    textAlign: "center",
     lineHeight: 22,
   },
   previewHeaderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
   },
   headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   rotateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(33, 130, 222, 0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(33, 130, 222, 0.1)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
     gap: 4,
   },
   rotateButtonText: {
-    color: '#2182DE',
+    color: "#2182DE",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontWeight: "bold",
+    color: "#1A1A1A",
   },
   resetButton: {
     padding: 4,
@@ -1141,13 +1294,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 4,
   },
-  howToRow: {
-    paddingHorizontal: 20,
-    paddingBottom: 4,
-  },
-  viewModeRow: {
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 20,
     paddingBottom: 8,
+  },
+  viewModeSwitchWrap: {
+    flex: 1,
+  },
+
+  zoomHint: {
+    position: "absolute",
+    left: 12,
+    bottom: 12,
+    zIndex: 10,
+    elevation: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  zoomHintText: { color: "#E5E5E5", fontSize: 12, fontWeight: "500" },
+  highlightToggleButton: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    zIndex: 10,
+    elevation: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  highlightToggleText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  hiddenBoundingBox: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   previewCardContainer: {
     flex: 1,
@@ -1156,30 +1347,28 @@ const styles = StyleSheet.create({
   },
   darkCard: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
     borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#000',
+    overflow: "hidden",
+    position: "relative",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
   },
   documentImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   boundingBox: {
-    position: 'absolute',
-    backgroundColor: 'rgba(33, 130, 222, 0.25)',
-    borderWidth: 1.5,
-    borderColor: '#2182DE',
+    position: "absolute",
+    backgroundColor: "rgba(33, 130, 222, 0.14)",
     borderRadius: 4,
   },
   selectedBoundingBox: {
-    backgroundColor: 'rgba(255, 204, 0, 0.45)',
-    borderColor: '#FFCC00',
+    backgroundColor: "rgba(255, 204, 0, 0.45)",
+    borderColor: "#FFCC00",
     borderWidth: 2.5,
   },
 });

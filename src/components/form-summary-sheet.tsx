@@ -1,12 +1,7 @@
 // "About this form": a small chip under the scan header. It shows which supported
 // form was recognized; tapping it opens a bottom sheet with a plain-language summary.
 import { useLocalization } from "@/context/LocalizationContext";
-import {
-  FORM_NONE,
-  getFormById,
-  getForms,
-  getSummaryView,
-} from "@/utils/form-summaries";
+import { getFormById, getForms, getSummaryView } from "@/utils/form-summaries";
 import { speakText, stopSpeaking } from "@/utils/tts";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -28,7 +23,9 @@ export default function FormSummaryChip({
 }: FormSummaryChipProps) {
   const { language, t } = useLocalization();
 
-  const [override, setOverride] = useState<string | null | undefined>(undefined);
+  const [override, setOverride] = useState<string | null | undefined>(
+    undefined,
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -43,9 +40,7 @@ export default function FormSummaryChip({
   useEffect(() => () => stopSpeaking(), []);
 
   const resolvedId: string | null | undefined =
-    override !== undefined
-      ? override
-      : detectedFormId;
+    override !== undefined ? override : detectedFormId;
 
   const pick = (id: string | null) => {
     setOverride(id);
@@ -53,9 +48,7 @@ export default function FormSummaryChip({
     setSheetOpen(false);
   };
 
-  const view = resolvedId
-    ? getSummaryView(resolvedId, language, true)
-    : null;
+  const view = resolvedId ? getSummaryView(resolvedId, language, true) : null;
 
   const handleSpeak = () => {
     if (!view?.text) return;
@@ -93,7 +86,9 @@ export default function FormSummaryChip({
           <Text style={styles.chipText} numberOfLines={1}>
             {form.form_name}
           </Text>
-          <Text style={styles.chipAbout}>{t("form_chip_about")}</Text>
+          <Text style={styles.chipAbout} numberOfLines={1}>
+            {t("form_chip_about")}
+          </Text>
           <Ionicons name="chevron-forward" size={15} color="#1B5FA8" />
         </TouchableOpacity>
       ) : null}
@@ -267,8 +262,14 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 12,
   },
-  chipText: { flex: 1, color: "#1B5FA8", fontSize: 13, fontWeight: "600" },
-  chipAbout: { color: "#1B5FA8", fontSize: 12 },
+  chipText: {
+    flexShrink: 0,
+    maxWidth: "62%",
+    color: "#1B5FA8",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  chipAbout: { flex: 1, textAlign: "right", color: "#1B5FA8", fontSize: 12 },
   overlay: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: {
