@@ -618,9 +618,14 @@
 alter table server_config disable row level security;</pre>
         </div>
 
-        <button class="btn btn-primary" id="saveSbConfigBtn" style="margin-top:6px; background:#10B981; color:#000;" type="button">
-          Save Supabase Configuration
-        </button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-primary" id="saveSbConfigBtn" style="flex:1; background:#10B981; color:#000;" type="button">
+            Save Supabase Configuration
+          </button>
+          <button class="btn" id="resetSbConfigBtn" style="background:rgba(255,255,255,0.08); color:#FFF; border:1px solid var(--card-border); padding:8px 14px; border-radius:8px; font-weight:600; cursor:pointer;" type="button">
+            🔄 Reset to Defaults
+          </button>
+        </div>
       </div>
 
       <!-- Firebase Tab Content -->
@@ -776,6 +781,10 @@ alter table server_config disable row level security;</pre>
         }
       } catch (err) {
         console.warn('Supabase fetch failed:', err);
+        currentUrlDisplay.textContent = 'Cannot reach ' + sbUrl;
+        statusBadge.className = 'status-badge error';
+        statusBadgeText.textContent = 'Connection Error';
+        showFeedback(`⚠️ Could not reach Supabase at <b>${sbUrl}</b> (${err.message}).<br>Click <b>Cloud Sync Config</b> (top right) &gt; <b>🔄 Reset to Defaults</b> &gt; <b>Save</b> to restore working credentials.`, 'error');
       }
     }
 
@@ -1063,7 +1072,7 @@ alter table server_config disable row level security;</pre>
           showFeedback(`🎉 <b>Published successfully to Supabase!</b><br>Active URL: <code>${url}</code><br>Any mobile app instance connected to this Supabase project will now sync this server automatically!`, 'success');
         } catch (err) {
           console.error('Supabase publish error:', err);
-          showFeedback(`❌ Failed to publish to Supabase: ${err.message}`, 'error');
+          showFeedback(`❌ Failed to publish to Supabase at <b>${sbUrl}</b>: ${err.message}.<br><br>👉 <b>Fix:</b> Click <b>Cloud Sync Config</b> (top right) &gt; click <b>🔄 Reset to Defaults</b> &gt; click <b>Save Supabase Configuration</b>.`, 'error');
         } finally {
           publishBtn.disabled = false;
           publishBtn.textContent = '🚀 Publish to Mobile App';
@@ -1131,6 +1140,15 @@ alter table server_config disable row level security;</pre>
 
     closeConfigBtn.addEventListener('click', () => {
       configModal.classList.remove('active');
+    });
+
+    const resetSbConfigBtn = document.getElementById('resetSbConfigBtn');
+    resetSbConfigBtn.addEventListener('click', async () => {
+      localStorage.removeItem('govform_sb_url');
+      localStorage.removeItem('govform_sb_key');
+      cfgSbUrl.value = DEFAULT_SB_URL;
+      cfgSbKey.value = DEFAULT_SB_KEY;
+      showFeedback('Restored team default Supabase credentials. Click "Save Supabase Configuration" to apply.', 'info');
     });
 
     saveSbConfigBtn.addEventListener('click', async () => {
