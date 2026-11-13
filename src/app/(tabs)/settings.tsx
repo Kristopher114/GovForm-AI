@@ -19,6 +19,7 @@ import {
 import {
   getOcrSettings,
   OcrMode,
+  saveDesktopIp,
   saveOcrMode
 } from "@/utils/ocr-settings";
 import {
@@ -30,6 +31,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   Share,
@@ -58,13 +60,25 @@ export default function SettingsScreen() {
     await setOpenInLargeText(value);
   };
   const [desktopIp, setDesktopIp] = useState("192.168.137.1");
+  const [inputIp, setInputIp] = useState("192.168.137.1");
 
   type ServerStatus = "checking" | "online" | "offline";
   const [serverStatus, setServerStatus] = useState<ServerStatus>("checking");
 
   const checkServerStatus = useCallback(async (targetUrl?: string) => {
     setServerStatus("checking");
-    const health = await checkPrimaryHostHealth(targetUrl || desktopIp);
+    let urlToCheck = targetUrl;
+    if (!urlToCheck) {
+      try {
+        const synced = await syncRemoteServerUrl();
+        if (synced) {
+          urlToCheck = synced;
+          setDesktopIp(synced);
+          setInputIp(synced);
+        }
+      } catch { }
+    }
+    const health = await checkPrimaryHostHealth(urlToCheck || desktopIp);
     if (health.isAvailable) {
       setServerStatus("online");
     } else {
@@ -76,8 +90,16 @@ export default function SettingsScreen() {
     const loadSettings = async () => {
       const settings = await getOcrSettings();
       setOcrMode(settings.mode);
-      setDesktopIp(settings.desktopIp);
-      checkServerStatus(settings.desktopIp);
+      let activeUrl = settings.desktopIp;
+      try {
+        const synced = await syncRemoteServerUrl();
+        if (synced) {
+          activeUrl = synced;
+        }
+      } catch { }
+      setDesktopIp(activeUrl);
+      setInputIp(activeUrl);
+      checkServerStatus(activeUrl);
     };
     loadSettings();
   }, [checkServerStatus]);
@@ -90,32 +112,33 @@ export default function SettingsScreen() {
     }
   };
 
-  const [isSyncingUrl, setIsSyncingUrl] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleCloudSync = async () => {
-    setIsSyncingUrl(true);
+  const handleRefreshServerStatus = async () => {
+    setIsRefreshing(true);
+    setServerStatus("checking");
+    let target = desktopIp;
     try {
-      const syncedUrl = await syncRemoteServerUrl();
-      if (syncedUrl) {
-        setDesktopIp(syncedUrl);
-        checkServerStatus(syncedUrl);
-        Alert.alert(
-          "Cloud Synced",
-          `Successfully updated Desktop URL to:\n${syncedUrl}`
-        );
-      } else {
-        Alert.alert(
-          "Sync Unavailable",
-          "No remote URL found in Firestore, or check your internet connection."
-        );
+      const synced = await syncRemoteServerUrl();
+      if (synced) {
+        target = synced;
+        setDesktopIp(synced);
+        setInputIp(synced);
       }
-    } catch (e) {
+    } catch { }
+    const health = await checkPrimaryHostHealth(target);
+    setServerStatus(health.isAvailable ? "online" : "offline");
+    setIsRefreshing(false);
+    if (health.isAvailable) {
       Alert.alert(
-        "Sync Error",
-        "Failed to sync: " + (e instanceof Error ? e.message : String(e))
+        "Server Online",
+        `Connected to primary host:\n${formatServerUrl(target)}`
       );
-    } finally {
-      setIsSyncingUrl(false);
+    } else {
+      Alert.alert(
+        "Server Unreachable",
+        `Could not connect to:\n${formatServerUrl(target)}\n\nReason: ${health.error || "Timeout or network error"}`
+      );
     }
   };
 
@@ -177,7 +200,22 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <OfflineBanner />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>{t("nav_settings")}</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{t("nav_settings")}</Text>
+          <TouchableOpacity
+            style={styles.tinyRefreshButton}
+            onPress={handleRefreshServerStatus}
+            disabled={isRefreshing}
+            activeOpacity={0.7}
+            accessibilityLabel="Refresh server status"
+          >
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#2182DE" />
+            ) : (
+              <Ionicons name="refresh-outline" size={18} color="#2182DE" />
+            )}
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("sectionTitle")}</Text>
@@ -306,7 +344,7 @@ export default function SettingsScreen() {
               <View style={styles.serverStatusRow}>
                 <View style={styles.serverStatusInfo}>
                   <View style={styles.serverStatusHeader}>
-                    <Text style={styles.serverStatusLabel}>Server Endpoint</Text>
+                    <Text style={styles.serverStatusLabel}>Active Endpoint</Text>
                     <View
                       style={[
                         styles.statusDotSmall,
@@ -344,16 +382,21 @@ export default function SettingsScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={styles.syncIconButton}
-                  onPress={() => checkServerStatus(desktopIp)}
+                  style={styles.tinyRefreshButton}
+                  onPress={handleRefreshServerStatus}
+                  disabled={isRefreshing}
                   activeOpacity={0.7}
                   accessibilityLabel="Refresh server status"
                 >
-                  <Ionicons
-                    name="refresh-outline"
-                    size={20}
-                    color="#2182DE"
-                  />
+                  {isRefreshing ? (
+                    <ActivityIndicator size="small" color="#2182DE" />
+                  ) : (
+                    <Ionicons
+                      name="refresh-outline"
+                      size={18}
+                      color="#2182DE"
+                    />
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -492,11 +535,26 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 32,
+  },
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 32,
     color: "#000",
+  },
+  tinyRefreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(33, 130, 222, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(33, 130, 222, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   section: {
     marginBottom: 24,

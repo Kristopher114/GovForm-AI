@@ -1,26 +1,94 @@
 import { getOcrSettings, OcrMode, saveDesktopIp, saveOcrMode } from "./ocr-settings";
 
-// Default or configured Firebase Project ID
-// Can be set via EXPO_PUBLIC_FIREBASE_PROJECT_ID in .env
-const FIREBASE_PROJECT_ID =
-  process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "";
+// Remote Cloud Sync Providers (Supabase and/or Firebase)
+// Configure via .env:
+// EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (Recommended)
+// EXPO_PUBLIC_FIREBASE_PROJECT_ID (Alternative)
+const SUPABASE_URL = (
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "https://imsnmwbvofghrbiaqmwr.supabase.co"
+).trim().replace(/\/+$/, "");
+
+const SUPABASE_ANON_KEY = (
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  "sb_publishable_8P-IHgD2XPu1nW_bj1_jGQ_fS0dHetl"
+).trim();
+const FIREBASE_PROJECT_ID = (
+  process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ||
+  "govformai-4a32e"
+).trim();
 
 export interface RemoteServerConfig {
   url: string;
   updatedAt?: number;
+  provider?: "supabase" | "firestore";
+}
+
+/**
+ * Fetches the active desktop/Cloudflare server URL from Supabase using
+ * standard REST API (table: server_config, id: 1).
+ */
+export async function fetchFromSupabase(
+  supabaseUrl: string = SUPABASE_URL,
+  anonKey: string = SUPABASE_ANON_KEY
+): Promise<RemoteServerConfig | null> {
+  const url = supabaseUrl.trim().replace(/\/+$/, "");
+  const key = anonKey.trim();
+  if (!url || !key) return null;
+
+  const endpoint = `${url}/rest/v1/server_config?id=eq.1&select=desktop_url,updated_at`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.warn(`Supabase remote config returned status ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const row = data[0];
+      const desktopUrl = row?.desktop_url;
+      if (desktopUrl && typeof desktopUrl === "string") {
+        return {
+          url: desktopUrl.trim(),
+          updatedAt: typeof row?.updated_at === "number" ? row.updated_at : undefined,
+          provider: "supabase",
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn("Failed to fetch remote server URL from Supabase:", error);
+    return null;
+  }
 }
 
 /**
  * Fetches the active desktop/Cloudflare server URL from Google Cloud Firestore
  * using the lightweight REST API (zero extra npm packages required).
  */
-export async function fetchRemoteServerUrl(
+export async function fetchFromFirestore(
   projectId: string = FIREBASE_PROJECT_ID
 ): Promise<RemoteServerConfig | null> {
   const pid = projectId.trim();
-  if (!pid) {
-    return null;
-  }
+  if (!pid) return null;
 
   const endpoint = `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/settings/server`;
 
@@ -53,6 +121,7 @@ export async function fetchRemoteServerUrl(
       return {
         url: desktopUrl.trim(),
         updatedAt,
+        provider: "firestore",
       };
     }
 
@@ -64,7 +133,32 @@ export async function fetchRemoteServerUrl(
 }
 
 /**
- * Auto-sync helper: fetches the latest URL from Firestore and saves it
+ * Resolves active server URL across cloud providers (Supabase first, then Firestore fallback).
+ */
+export async function fetchRemoteServerUrl(
+  projectId: string = FIREBASE_PROJECT_ID
+): Promise<RemoteServerConfig | null> {
+  // 1. Try Supabase first if configured
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    const sbConfig = await fetchFromSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (sbConfig?.url) {
+      return sbConfig;
+    }
+  }
+
+  // 2. Fall back to Firebase Firestore
+  if (projectId || FIREBASE_PROJECT_ID) {
+    const fsConfig = await fetchFromFirestore(projectId || FIREBASE_PROJECT_ID);
+    if (fsConfig?.url) {
+      return fsConfig;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Auto-sync helper: fetches the latest URL from Supabase or Firestore and saves it
  * to local AsyncStorage if it's new. Returns the active URL.
  */
 export async function syncRemoteServerUrl(
@@ -75,7 +169,7 @@ export async function syncRemoteServerUrl(
     const current = await getOcrSettings();
     if (current.desktopIp !== remote.url) {
       await saveDesktopIp(remote.url);
-      console.log(`[RemoteConfig] Updated desktop URL to: ${remote.url}`);
+      console.log(`[RemoteConfig] Updated desktop URL via ${remote.provider || 'cloud'} to: ${remote.url}`);
     }
     return remote.url;
   }
@@ -140,7 +234,7 @@ export async function checkPrimaryHostHealth(targetUrl?: string): Promise<Primar
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
     const response = await fetch(`${url}/health`, {
       method: "GET",

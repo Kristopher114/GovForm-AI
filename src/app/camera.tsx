@@ -625,22 +625,27 @@ export default function CameraOCRScreen() {
           color="#2182DE"
           style={{ marginBottom: 16 }}
         />
-        <Text style={styles.permissionTitle}>Camera Permission Required</Text>
+        <Text style={styles.permissionTitle}>
+          {t("camera_permission_title")}
+        </Text>
         <Text style={styles.permissionText}>
-          GovForm-AI needs camera access to capture documents and recognize
-          their text.
+          {t("camera_permission_text")}
         </Text>
         <TouchableOpacity
           style={styles.permissionButton}
           onPress={requestPermission}
         >
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          <Text style={styles.permissionButtonText}>
+            {t("camera_permission_grant")}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.permissionCancelButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.permissionCancelText}>Go Back</Text>
+          <Text style={styles.permissionCancelText}>
+            {t("camera_permission_cancel")}
+          </Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -780,7 +785,9 @@ export default function CameraOCRScreen() {
               </GestureDetector>
               {showZoomHint && (
                 <View style={styles.zoomHint} pointerEvents="none">
-                  <Text style={styles.zoomHintText}>Double-tap to zoom</Text>
+                  <Text style={styles.zoomHintText}>
+                    {t("camera_double_tap_zoom")}
+                  </Text>
                 </View>
               )}
               {/* Floating toggle: stays fixed on the card, does not zoom */}
@@ -795,7 +802,9 @@ export default function CameraOCRScreen() {
                   color="#FFF"
                 />
                 <Text style={styles.highlightToggleText}>
-                  {showOcrHighlights ? "Hide Highlights" : "Show Highlights"}
+                  {showOcrHighlights
+                    ? t("camera_hide_highlights")
+                    : t("camera_show_highlights")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -835,7 +844,9 @@ export default function CameraOCRScreen() {
         </TouchableOpacity>
 
         <View style={styles.cameraHeaderCenter}>
-          <Text style={styles.cameraHeaderTitle}>Scan Document</Text>
+          <Text style={styles.cameraHeaderTitle}>
+            {t("camera_scan_document")}
+          </Text>
           <View style={styles.ratioBadge}>
             <Text style={styles.ratioBadgeText}>4:3</Text>
           </View>
@@ -893,7 +904,7 @@ export default function CameraOCRScreen() {
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
               <Text style={styles.frameGuideText}>
-                Align document within the frame
+                {t("camera_align_frame")}
               </Text>
             </View>
           </View>
@@ -964,7 +975,7 @@ export default function CameraOCRScreen() {
         </View>
 
         <Text style={styles.cameraHintText}>
-          Tap Shutter to capture document
+          {t("camera_tap_shutter")}
         </Text>
       </View>
     </SafeAreaView>

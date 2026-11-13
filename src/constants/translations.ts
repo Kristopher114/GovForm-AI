@@ -108,7 +108,17 @@ export type TranslationKey =
   | "offline_scan_blocked"
   | "service_status_notice_title"
   | "service_status_notice_msg"
-  | "service_status_fallback_scan_msg";
+  | "service_status_fallback_scan_msg"
+  | "camera_scan_document"
+  | "camera_align_frame"
+  | "camera_tap_shutter"
+  | "camera_double_tap_zoom"
+  | "camera_hide_highlights"
+  | "camera_show_highlights"
+  | "camera_permission_title"
+  | "camera_permission_text"
+  | "camera_permission_grant"
+  | "camera_permission_cancel";
 
 export const translations: Record<
   LanguageKey,
@@ -251,6 +261,17 @@ export const translations: Record<
       "The primary processing host is currently offline or temporarily unavailable. Image processing has been seamlessly routed to the on-device Google ML Kit engine as a local client-side fallback.",
     service_status_fallback_scan_msg:
       "Primary processing host became unavailable. Seamlessly routing image processing to the on-device Google ML Kit engine as fallback.",
+    camera_scan_document: "Scan Document",
+    camera_align_frame: "Align document within the frame",
+    camera_tap_shutter: "Tap Shutter to capture document",
+    camera_double_tap_zoom: "Double-tap to zoom",
+    camera_hide_highlights: "Hide Highlights",
+    camera_show_highlights: "Show Highlights",
+    camera_permission_title: "Camera Permission Required",
+    camera_permission_text:
+      "GovForm-AI needs camera access to capture documents and recognize their text.",
+    camera_permission_grant: "Grant Permission",
+    camera_permission_cancel: "Go Back",
   },
   Tagalog: {
     app_title: "GovForm AI",
@@ -391,6 +412,17 @@ export const translations: Record<
       "Kasalukuyang offline o pansamantalang hindi maabot ang primary host server. Ang pagproseso ng imahe ay awtomatikong inilipat sa on-device Google ML Kit engine bilang fallback.",
     service_status_fallback_scan_msg:
       "Hindi maabot ang primary host server. Awtomatikong inilipat ang pagproseso ng imahe sa on-device Google ML Kit engine bilang fallback.",
+    camera_scan_document: "I-scan ang Dokumento",
+    camera_align_frame: "Itapat ang dokumento sa loob ng frame",
+    camera_tap_shutter: "Pindutin ang Shutter para kuhanan ang dokumento",
+    camera_double_tap_zoom: "Pindutin nang dalawang beses para mag-zoom",
+    camera_hide_highlights: "Itago ang Highlights",
+    camera_show_highlights: "Ipakita ang Highlights",
+    camera_permission_title: "Kailangan ng Pahintulot sa Camera",
+    camera_permission_text:
+      "Kailangan ng GovForm-AI ng access sa camera para kuhanan ang mga dokumento at basahin ang teksto.",
+    camera_permission_grant: "Payagan ang Camera",
+    camera_permission_cancel: "Bumalik",
   },
   Cebuano: {
     app_title: "GovForm AI",
@@ -531,5 +563,16 @@ export const translations: Record<
       "Ang primary host server kasamtangang offline o dili makab-ot. Ang pagproseso sa imahe awtomatikong gibalhin sa on-device Google ML Kit engine isip fallback.",
     service_status_fallback_scan_msg:
       "Dili makab-ot ang primary host server. Awtomatikong gibalhin ang pagproseso sa imahe sa on-device Google ML Kit engine isip fallback.",
+    camera_scan_document: "I-scan ang Dokumento",
+    camera_align_frame: "I-sakto ang dokumento sa sulod sa frame",
+    camera_tap_shutter: "Pindota ang Shutter para picturan ang dokumento",
+    camera_double_tap_zoom: "I-double tap para mag-zoom",
+    camera_hide_highlights: "Itago ang Highlights",
+    camera_show_highlights: "Ipakita ang Highlights",
+    camera_permission_title: "Gikinahanglan ang Permiso sa Camera",
+    camera_permission_text:
+      "Kinahanglan sa GovForm-AI ang access sa camera aron picturan ang mga dokumento ug basahon ang teksto.",
+    camera_permission_grant: "Tuguti ang Camera",
+    camera_permission_cancel: "Mobalik",
   },
 };

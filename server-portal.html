@@ -487,11 +487,11 @@
         </div>
         <div class="header-title">
           <h1>GovForm AI Server Dispatcher</h1>
-          <p>Sync active Desktop / Cloudflare URL to mobile app via Firestore</p>
+          <p>Sync active Desktop / Cloudflare URL to mobile app via Supabase or Firebase</p>
         </div>
       </div>
       <button class="config-trigger-btn" id="openConfigBtn">
-        ⚙️ Firebase Config
+        ⚙️ Cloud Sync Config
       </button>
     </header>
 
@@ -501,7 +501,7 @@
       <div class="status-banner">
         <div class="status-info">
           <span class="status-label">Active Cloudflare / Desktop URL</span>
-          <span class="status-value" id="currentUrlDisplay">Checking Firestore...</span>
+          <span class="status-value" id="currentUrlDisplay">Checking cloud backend...</span>
         </div>
         <div class="status-badge pending" id="statusBadge">
           <span class="status-dot"></span>
@@ -543,29 +543,100 @@
       <!-- Feedback Messages -->
       <div class="feedback-message" id="feedbackMessage"></div>
     </div>
+
+    <!-- Quick Help & Self-Hosting Guide Card -->
+    <div class="card" style="margin-top: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+      <h3 style="color: var(--text-main); font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+        👥 How Anyone (You or Your Friend) Can Host Their Own OCR Server
+      </h3>
+      <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+        <li>
+          <b>1. Start Desktop Python OCR Server:</b>
+          <pre style="background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 6px; font-family: monospace; color: #34D399; margin: 4px 0;">python local_ocr_server.py</pre>
+        </li>
+        <li>
+          <b>2. Launch Cloudflare Tunnel:</b>
+          <pre style="background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 6px; font-family: monospace; color: #34D399; margin: 4px 0;">cloudflared tunnel --protocol http2 --edge-ip-version 4 --no-prechecks --url http://localhost:8000</pre>
+        </li>
+        <li>
+          <b>3. Publish to Mobile App:</b>
+          Paste the generated <code>https://...trycloudflare.com</code> URL into the box above and click <b>🚀 Publish to Mobile App</b>!
+        </li>
+        <li>
+          <b>4. In the Mobile App (Two Ways to Connect):</b>
+          <ul style="margin-left: 18px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+            <li><b>Automatic Cloud Sync:</b> In your mobile app's <code>.env</code> file, set <code>EXPO_PUBLIC_SUPABASE_URL</code> and <code>EXPO_PUBLIC_SUPABASE_ANON_KEY</code> (or <code>EXPO_PUBLIC_FIREBASE_PROJECT_ID</code>). The phone updates automatically!</li>
+            <li><b>Direct In-App Paste (Instant):</b> In the mobile app, tap <b>Settings &rarr; Server 1 Endpoint</b>, paste the tunnel URL directly into the box, and tap <b>Save & Connect</b>.</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
   </div>
 
-  <!-- Firebase Credentials Setup Modal -->
+  <!-- Cloud Sync Configuration Modal -->
   <div class="modal-overlay" id="configModal">
     <div class="modal">
       <div class="modal-header">
-        <h2>⚙️ Firebase Configuration</h2>
+        <h2>⚙️ Cloud Sync Configuration</h2>
         <button class="modal-close-btn" id="closeConfigBtn">&times;</button>
       </div>
-      <div class="modal-body">
+
+      <!-- Provider Tabs -->
+      <div style="display:flex; gap:8px; border-bottom:1px solid var(--card-border); padding-bottom:12px;">
+        <button type="button" id="tabSupabaseBtn" style="flex:1; padding:8px 12px; border-radius:8px; border:none; background:#10B981; color:#000; font-weight:700; font-size:13px; cursor:pointer;">
+          ⚡ Supabase (Recommended)
+        </button>
+        <button type="button" id="tabFirebaseBtn" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.05); color:#AAA; font-weight:600; font-size:13px; cursor:pointer;">
+          🔥 Firebase Firestore
+        </button>
+      </div>
+
+      <!-- Supabase Tab Content -->
+      <div class="modal-body" id="supabaseTabContent">
         <p class="modal-desc">
-          Paste your Web App config from <b>Firebase Console > Project Settings > Your Apps</b>. These are saved locally
-          in your browser.
+          Paste your Project URL & Anon Key from <b>Supabase Console &gt; Project Settings &gt; API</b>.
+        </p>
+
+        <label style="font-size:12px; font-weight:600; color:#AAA;">Supabase Project URL</label>
+        <input type="text" class="modal-input" id="cfgSbUrl" placeholder="https://xyzabcdefg.supabase.co">
+
+        <label style="font-size:12px; font-weight:600; color:#AAA;">Supabase Anon Public Key</label>
+        <input type="text" class="modal-input" id="cfgSbKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6...">
+
+        <!-- 1-Click SQL Snippet -->
+        <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:700; color:#34D399;">SQL TO CREATE TABLE (Run once in SQL Editor):</span>
+            <button type="button" id="copySqlBtn" style="background:#10B981; color:#000; border:none; border-radius:4px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">Copy SQL</button>
+          </div>
+          <pre id="sqlSnippet" style="font-size:11px; color:#A7F3D0; font-family:monospace; margin:0; overflow-x:auto;">create table if not exists server_config (
+  id int primary key default 1,
+  desktop_url text not null,
+  updated_at bigint not null,
+  source text default 'pc_portal'
+);
+alter table server_config disable row level security;</pre>
+        </div>
+
+        <button class="btn btn-primary" id="saveSbConfigBtn" style="margin-top:6px; background:#10B981; color:#000;" type="button">
+          Save Supabase Configuration
+        </button>
+      </div>
+
+      <!-- Firebase Tab Content -->
+      <div class="modal-body" id="firebaseTabContent" style="display:none;">
+        <p class="modal-desc">
+          Paste your Web App config from <b>Firebase Console &gt; Project Settings</b>.
         </p>
 
         <label style="font-size:12px; font-weight:600; color:#AAA;">Firebase Project ID</label>
-        <input type="text" class="modal-input" id="cfgProjectId" placeholder="govform-ai-12345">
+        <input type="text" class="modal-input" id="cfgProjectId" placeholder="govformai-4a32e">
 
-        <label style="font-size:12px; font-weight:600; color:#AAA;">API Key</label>
+        <label style="font-size:12px; font-weight:600; color:#AAA;">API Key (Optional for open rules)</label>
         <input type="text" class="modal-input" id="cfgApiKey" placeholder="AIzaSy...">
 
-        <button class="btn btn-primary" id="saveConfigBtn" style="margin-top:12px;" type="button">
-          Save Configuration
+        <button class="btn btn-primary" id="saveFbConfigBtn" style="margin-top:6px;" type="button">
+          Save Firebase Configuration
         </button>
       </div>
     </div>
@@ -574,6 +645,9 @@
   <script>
     // State & DOM
     let db = null;
+    let unsubscribeSnapshot = null;
+    let supabasePollTimer = null;
+
     const currentUrlDisplay = document.getElementById('currentUrlDisplay');
     const statusBadge = document.getElementById('statusBadge');
     const statusBadgeText = document.getElementById('statusBadgeText');
@@ -588,34 +662,167 @@
     const openConfigBtn = document.getElementById('openConfigBtn');
     const closeConfigBtn = document.getElementById('closeConfigBtn');
     const configModal = document.getElementById('configModal');
-    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const tabSupabaseBtn = document.getElementById('tabSupabaseBtn');
+    const tabFirebaseBtn = document.getElementById('tabFirebaseBtn');
+    const supabaseTabContent = document.getElementById('supabaseTabContent');
+    const firebaseTabContent = document.getElementById('firebaseTabContent');
+    const cfgSbUrl = document.getElementById('cfgSbUrl');
+    const cfgSbKey = document.getElementById('cfgSbKey');
+    const saveSbConfigBtn = document.getElementById('saveSbConfigBtn');
     const cfgProjectId = document.getElementById('cfgProjectId');
     const cfgApiKey = document.getElementById('cfgApiKey');
+    const saveFbConfigBtn = document.getElementById('saveFbConfigBtn');
+    const copySqlBtn = document.getElementById('copySqlBtn');
+    const sqlSnippet = document.getElementById('sqlSnippet');
 
     function showFeedback(text, type = 'info') {
       feedbackMessage.className = `feedback-message show ${type}`;
-      feedbackMessage.textContent = text;
+      feedbackMessage.innerHTML = text.replace(/\n/g, '<br>');
     }
 
-    function initFirebase() {
-      const projectId = localStorage.getItem('govform_fb_project_id');
-      const apiKey = localStorage.getItem('govform_fb_api_key');
+    function getActiveProvider() {
+      const explicit = localStorage.getItem('govform_sync_provider');
+      if (explicit) return explicit;
+      if (localStorage.getItem('govform_sb_url')) return 'supabase';
+      if (localStorage.getItem('govform_fb_project_id')) return 'firebase';
+      return 'supabase';
+    }
 
-      if (!projectId || !apiKey) {
+    // Tab Switcher in Config Modal
+    function switchTab(provider) {
+      if (provider === 'supabase') {
+        tabSupabaseBtn.style.background = '#10B981';
+        tabSupabaseBtn.style.color = '#000';
+        tabSupabaseBtn.style.border = 'none';
+        tabFirebaseBtn.style.background = 'rgba(255,255,255,0.05)';
+        tabFirebaseBtn.style.color = '#AAA';
+        tabFirebaseBtn.style.border = '1px solid var(--card-border)';
+        supabaseTabContent.style.display = 'flex';
+        firebaseTabContent.style.display = 'none';
+      } else {
+        tabFirebaseBtn.style.background = '#2182DE';
+        tabFirebaseBtn.style.color = '#FFF';
+        tabFirebaseBtn.style.border = 'none';
+        tabSupabaseBtn.style.background = 'rgba(255,255,255,0.05)';
+        tabSupabaseBtn.style.color = '#AAA';
+        tabSupabaseBtn.style.border = '1px solid var(--card-border)';
+        firebaseTabContent.style.display = 'flex';
+        supabaseTabContent.style.display = 'none';
+      }
+    }
+
+    tabSupabaseBtn.addEventListener('click', () => switchTab('supabase'));
+    tabFirebaseBtn.addEventListener('click', () => switchTab('firebase'));
+
+    // Copy SQL button
+    copySqlBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sqlSnippet.textContent);
+        copySqlBtn.textContent = 'Copied!';
+        setTimeout(() => { copySqlBtn.textContent = 'Copy SQL'; }, 2000);
+      } catch (e) {
+        alert('Could not copy SQL automatically. Please select and copy manually.');
+      }
+    });
+
+    // Supabase Polling & Retrieval
+    async function pollSupabase() {
+      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim().replace(/\/+$/, '');
+      const sbKey = (localStorage.getItem('govform_sb_key') || '').trim();
+
+      if (!sbUrl || !sbKey) return;
+
+      try {
+        const res = await fetch(`${sbUrl}/rest/v1/server_config?id=eq.1&select=desktop_url,updated_at`, {
+          headers: {
+            'apikey': sbKey,
+            'Authorization': `Bearer ${sbKey}`
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData?.message || `HTTP ${res.status}`;
+          if (errMsg.includes('does not exist') || errMsg.includes('relation') || res.status === 404) {
+            currentUrlDisplay.textContent = 'Table server_config not created yet';
+            statusBadge.className = 'status-badge error';
+            statusBadgeText.textContent = 'Supabase Table Missing';
+            showFeedback('⚠️ Table <code>server_config</code> not found in Supabase.<br>Open <b>Cloud Sync Config</b> at top right, copy the SQL snippet, and run it in your <b>Supabase SQL Editor</b>.', 'error');
+          } else {
+            currentUrlDisplay.textContent = 'Supabase error: ' + errMsg;
+            statusBadge.className = 'status-badge error';
+            statusBadgeText.textContent = 'Supabase Error';
+          }
+          return;
+        }
+
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0 && data[0]?.desktop_url) {
+          const activeUrl = data[0].desktop_url;
+          currentUrlDisplay.textContent = activeUrl;
+          statusBadge.className = 'status-badge synced';
+          statusBadgeText.textContent = '⚡ Supabase Synced';
+          if (data[0].updated_at) {
+            const date = new Date(data[0].updated_at);
+            lastUpdatedDisplay.textContent = 'Updated ' + date.toLocaleTimeString();
+          }
+        } else {
+          currentUrlDisplay.textContent = 'No URL published yet';
+          statusBadge.className = 'status-badge pending';
+          statusBadgeText.textContent = 'Empty (Supabase)';
+        }
+      } catch (err) {
+        console.warn('Supabase fetch failed:', err);
+      }
+    }
+
+    // Firebase Init
+    function formatFirestoreError(errMessage) {
+      const msg = String(errMessage || '');
+      if (msg.includes('permission') || msg.includes('PERMISSION_DENIED') || msg.includes('Missing or insufficient permissions')) {
+        return `🔒 <b>PERMISSION DENIED</b>: Your Firestore Security Rules are blocking writes!<br><br>
+<b>👉 How to fix in 10 seconds:</b><br>
+1. Open <a href="https://console.firebase.google.com" target="_blank" style="color:#60A5FA; text-decoration:underline;">Firebase Console</a> & select your project.<br>
+2. In left menu click <b>Firestore Database</b> &rarr; <b>Rules</b> tab.<br>
+3. Change <code>allow read, write: if false;</code> to <code>allow read, write: if true;</code><br>
+4. Click the blue <b>Publish</b> button!`;
+      }
+      if (msg.includes('NOT_FOUND') || msg.includes('not found') || msg.includes('does not exist')) {
+        return `📁 <b>DATABASE NOT FOUND</b>: Firestore has not been instantiated in your project yet.<br><br>
+<b>👉 How to fix:</b><br>
+1. Open Firebase Console &rarr; <b>Firestore Database</b>.<br>
+2. Click <b>Create Database</b> with Database ID <code>(default)</code> and any location (e.g. asia-southeast1).`;
+      }
+      return `❌ Firestore Error: ${msg}<br><i>(Check Firestore Database &gt; Rules to ensure read/write are allowed)</i>`;
+    }
+
+    async function initFirebase() {
+      const projectId = (localStorage.getItem('govform_fb_project_id') || '').trim();
+      const apiKey = (localStorage.getItem('govform_fb_api_key') || '').trim();
+
+      if (!projectId) {
         currentUrlDisplay.textContent = 'Firebase credentials not configured';
         statusBadge.className = 'status-badge error';
         statusBadgeText.textContent = 'Missing Config';
-        showFeedback('Please click "Firebase Config" at the top right to link your Firebase project.', 'info');
+        showFeedback('Please click "Cloud Sync Config" at the top right to link your Firebase or Supabase project.', 'info');
         return false;
       }
 
       try {
-        if (!firebase.apps.length) {
-          firebase.initializeApp({
-            apiKey: apiKey,
-            projectId: projectId,
-          });
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
         }
+
+        if (firebase.apps && firebase.apps.length > 0) {
+          await Promise.all(firebase.apps.map(app => app.delete()));
+        }
+
+        firebase.initializeApp({
+          apiKey: apiKey || 'dummy-key',
+          projectId: projectId,
+        });
+
         db = firebase.firestore();
         listenToCurrentUrl();
         return true;
@@ -630,32 +837,102 @@
       if (!db) return;
 
       statusBadge.className = 'status-badge pending';
-      statusBadgeText.textContent = 'Listening...';
+      statusBadgeText.textContent = 'Listening (Firebase)...';
 
-      db.collection('settings').doc('server').onSnapshot((doc) => {
-        if (doc.exists) {
-          const data = doc.data();
-          const activeUrl = data.desktop_url || 'Not set';
-          currentUrlDisplay.textContent = activeUrl;
-          statusBadge.className = 'status-badge synced';
-          statusBadgeText.textContent = 'Synced';
+      try {
+        unsubscribeSnapshot = db.collection('settings').doc('server').onSnapshot((doc) => {
+          if (doc.exists) {
+            const data = doc.data();
+            const activeUrl = data.desktop_url || 'Not set';
+            currentUrlDisplay.textContent = activeUrl;
+            statusBadge.className = 'status-badge synced';
+            statusBadgeText.textContent = '🔥 Firebase Synced';
 
-          if (data.updated_at) {
-            const date = new Date(data.updated_at);
-            lastUpdatedDisplay.textContent = 'Updated ' + date.toLocaleTimeString();
+            if (data.updated_at) {
+              const date = new Date(data.updated_at);
+              lastUpdatedDisplay.textContent = 'Updated ' + date.toLocaleTimeString();
+            }
+          } else {
+            currentUrlDisplay.textContent = 'No URL published yet';
+            statusBadge.className = 'status-badge pending';
+            statusBadgeText.textContent = 'Empty (Firebase)';
           }
-        } else {
-          currentUrlDisplay.textContent = 'No URL published yet';
-          statusBadge.className = 'status-badge pending';
-          statusBadgeText.textContent = 'Empty';
+        }, (err) => {
+          console.error('Firestore listen error:', err);
+          currentUrlDisplay.textContent = 'Permission denied or network error';
+          statusBadge.className = 'status-badge error';
+          statusBadgeText.textContent = 'Firestore Error';
+          showFeedback(formatFirestoreError(err.message), 'error');
+        });
+      } catch (err) {
+        console.error('Listen setup error:', err);
+        showFeedback(formatFirestoreError(err.message), 'error');
+      }
+    }
+
+    // Master provider initialization
+    async function initSyncProvider() {
+      // Clear timers and listeners
+      if (supabasePollTimer) {
+        clearInterval(supabasePollTimer);
+        supabasePollTimer = null;
+      }
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
+      const provider = getActiveProvider();
+      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim();
+      const fbPid = (localStorage.getItem('govform_fb_project_id') || '').trim();
+
+      if (provider === 'supabase' && sbUrl) {
+        statusBadge.className = 'status-badge pending';
+        statusBadgeText.textContent = 'Connecting (Supabase)...';
+        await pollSupabase();
+        supabasePollTimer = setInterval(pollSupabase, 15000);
+        return;
+      }
+
+      if (fbPid) {
+        await initFirebase();
+        return;
+      }
+
+      // Neither configured
+      currentUrlDisplay.textContent = 'Cloud sync not configured';
+      statusBadge.className = 'status-badge error';
+      statusBadgeText.textContent = 'Missing Config';
+      showFeedback('Click "Cloud Sync Config" at the top right to link Supabase (Recommended) or Firebase.', 'info');
+    }
+
+    // Direct REST write for Firebase
+    async function publishViaRest(projectId, apiKey, url) {
+      let endpoint = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/server?updateMask.fieldPaths=desktop_url&updateMask.fieldPaths=updated_at&updateMask.fieldPaths=source`;
+      if (apiKey) {
+        endpoint += `&key=${encodeURIComponent(apiKey)}`;
+      }
+
+      const body = {
+        fields: {
+          desktop_url: { stringValue: url },
+          updated_at: { integerValue: String(Date.now()) },
+          source: { stringValue: "pc_portal" }
         }
-      }, (err) => {
-        console.error('Firestore listen error:', err);
-        currentUrlDisplay.textContent = 'Permission denied or network error';
-        statusBadge.className = 'status-badge error';
-        statusBadgeText.textContent = 'Firestore Error';
-        showFeedback('Firestore error: ' + err.message + ' (Check Firestore security rules)', 'error');
+      };
+
+      const res = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const msg = errJson?.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+        throw new Error(msg);
+      }
+      return true;
     }
 
     // Preset chip clicks
@@ -691,22 +968,40 @@
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(`${url}/docs`, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+        const res = await fetch(`${url}/health`, { method: 'GET', signal: controller.signal });
         clearTimeout(timeout);
-        showFeedback(`✅ Server responded! The URL is reachable.`, 'success');
+        if (res.ok) {
+          showFeedback(`✅ Server responded (HTTP ${res.status})! The URL is online and reachable.`, 'success');
+        } else {
+          showFeedback(`⚠️ Server responded with HTTP ${res.status}. Server is reachable, but verify health endpoint.`, 'info');
+        }
       } catch (err) {
-        showFeedback(`⚠️ Could not reach server directly (CORS or offline): ${err.message}. If this is a Cloudflare Tunnel, verify your Python server is running on port 8000.`, 'error');
+        showFeedback(`⚠️ Could not reach ${url}: ${err.message}. If this is a Cloudflare Tunnel, verify your Python server is running on port 8000 and the tunnel is active.`, 'error');
       } finally {
         testPingBtn.disabled = false;
         testPingBtn.textContent = '🔍 Test URL';
       }
     });
 
-    // Publish to Firestore
+    // Publish to Active Cloud Provider
     publishBtn.addEventListener('click', async () => {
-      if (!db) {
-        showFeedback('Please configure your Firebase credentials first.', 'error');
+      const provider = getActiveProvider();
+      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim().replace(/\/+$/, '');
+      const sbKey = (localStorage.getItem('govform_sb_key') || '').trim();
+      const fbPid = (localStorage.getItem('govform_fb_project_id') || '').trim();
+      const fbKey = (localStorage.getItem('govform_fb_api_key') || '').trim();
+
+      if (provider === 'supabase' && (!sbUrl || !sbKey)) {
+        showFeedback('Please configure your Supabase credentials first (click "Cloud Sync Config").', 'error');
         configModal.classList.add('active');
+        switchTab('supabase');
+        return;
+      }
+
+      if (provider === 'firebase' && !fbPid) {
+        showFeedback('Please configure your Firebase credentials first (click "Cloud Sync Config").', 'error');
+        configModal.classList.add('active');
+        switchTab('firebase');
         return;
       }
 
@@ -724,26 +1019,110 @@
       publishBtn.disabled = true;
       publishBtn.textContent = 'Publishing...';
 
-      try {
-        await db.collection('settings').doc('server').set({
-          desktop_url: url,
-          updated_at: Date.now(),
-          source: 'pc_portal',
-        });
-        showFeedback(`🎉 Published successfully! All mobile app instances will now connect to: ${url}`, 'success');
-      } catch (err) {
-        console.error('Publish error:', err);
-        showFeedback('Failed to publish to Firestore: ' + err.message + '. (Make sure Firestore Rules allow write!)', 'error');
-      } finally {
-        publishBtn.disabled = false;
-        publishBtn.textContent = '🚀 Publish to Mobile App';
+      // ==========================================
+      // Case 1: Publish to Supabase
+      // ==========================================
+      if (provider === 'supabase' && sbUrl && sbKey) {
+        try {
+          const res = await fetch(`${sbUrl}/rest/v1/server_config`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': sbKey,
+              'Authorization': `Bearer ${sbKey}`,
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+              id: 1,
+              desktop_url: url,
+              updated_at: Date.now(),
+              source: 'pc_portal'
+            })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData?.message || `HTTP ${res.status}`;
+            if (errMsg.includes('does not exist') || errMsg.includes('relation') || res.status === 404) {
+              throw new Error(`Table 'server_config' does not exist yet. Please run the SQL snippet in Cloud Sync Config.`);
+            }
+            if (errMsg.includes('row-level security') || errMsg.includes('policy')) {
+              throw new Error(`🔒 <b>Row-Level Security (RLS) is blocking writes!</b><br><br>👉 <b>Fix in 5 seconds:</b> Open your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60A5FA; text-decoration:underline;">Supabase SQL Editor</a> and run this line:<br><pre style="background:rgba(0,0,0,0.5); padding:6px 10px; border-radius:6px; color:#34D399; font-family:monospace; margin-top:6px; display:inline-block;">alter table server_config disable row level security;</pre>`);
+            }
+            throw new Error(errMsg);
+          }
+
+          currentUrlDisplay.textContent = url;
+          statusBadge.className = 'status-badge synced';
+          statusBadgeText.textContent = '⚡ Supabase Synced';
+          lastUpdatedDisplay.textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+          showFeedback(`🎉 <b>Published successfully to Supabase!</b><br>Active URL: <code>${url}</code><br>Any mobile app instance connected to this Supabase project will now sync this server automatically!`, 'success');
+        } catch (err) {
+          console.error('Supabase publish error:', err);
+          showFeedback(`❌ Failed to publish to Supabase: ${err.message}`, 'error');
+        } finally {
+          publishBtn.disabled = false;
+          publishBtn.textContent = '🚀 Publish to Mobile App';
+        }
+        return;
       }
+
+      // ==========================================
+      // Case 2: Publish to Firebase
+      // ==========================================
+      let success = false;
+      let lastErr = null;
+
+      if (db) {
+        try {
+          await db.collection('settings').doc('server').set({
+            desktop_url: url,
+            updated_at: Date.now(),
+            source: 'pc_portal',
+          });
+          success = true;
+        } catch (err) {
+          console.warn('SDK write failed, trying REST API fallback:', err);
+          lastErr = err;
+        }
+      }
+
+      if (!success) {
+        try {
+          await publishViaRest(fbPid, fbKey, url);
+          success = true;
+          if (db) {
+            currentUrlDisplay.textContent = url;
+            statusBadge.className = 'status-badge synced';
+            statusBadgeText.textContent = '🔥 Firebase Synced';
+            lastUpdatedDisplay.textContent = 'Updated ' + new Date().toLocaleTimeString();
+          }
+        } catch (restErr) {
+          console.error('REST API write also failed:', restErr);
+          lastErr = restErr;
+        }
+      }
+
+      if (success) {
+        showFeedback(`🎉 <b>Published successfully to Firestore!</b><br>Document: <code>settings/server</code><br>Active URL: <code>${url}</code><br>All mobile app instances will now connect automatically!`, 'success');
+      } else {
+        const formatted = formatFirestoreError(lastErr?.message || String(lastErr));
+        showFeedback(formatted, 'error');
+      }
+
+      publishBtn.disabled = false;
+      publishBtn.textContent = '🚀 Publish to Mobile App';
     });
 
-    // Config Modal events
+    // Modal Events
     openConfigBtn.addEventListener('click', () => {
+      cfgSbUrl.value = localStorage.getItem('govform_sb_url') || '';
+      cfgSbKey.value = localStorage.getItem('govform_sb_key') || '';
       cfgProjectId.value = localStorage.getItem('govform_fb_project_id') || '';
       cfgApiKey.value = localStorage.getItem('govform_fb_api_key') || '';
+
+      switchTab(getActiveProvider());
       configModal.classList.add('active');
     });
 
@@ -751,26 +1130,45 @@
       configModal.classList.remove('active');
     });
 
-    saveConfigBtn.addEventListener('click', () => {
-      const pid = cfgProjectId.value.trim();
-      const key = cfgApiKey.value.trim();
+    saveSbConfigBtn.addEventListener('click', async () => {
+      const url = cfgSbUrl.value.trim().replace(/\/+$/, '');
+      const key = cfgSbKey.value.trim();
 
-      if (!pid || !key) {
-        alert('Please fill in both Project ID and API Key.');
+      if (!url || !key) {
+        alert('Please fill in both Supabase Project URL and Anon Key.');
         return;
       }
 
+      localStorage.setItem('govform_sync_provider', 'supabase');
+      localStorage.setItem('govform_sb_url', url);
+      localStorage.setItem('govform_sb_key', key);
+      configModal.classList.remove('active');
+
+      showFeedback('⚡ Supabase credentials saved! Connecting...', 'info');
+      await initSyncProvider();
+    });
+
+    saveFbConfigBtn.addEventListener('click', async () => {
+      const pid = cfgProjectId.value.trim();
+      const key = cfgApiKey.value.trim();
+
+      if (!pid) {
+        alert('Please fill in your Firebase Project ID.');
+        return;
+      }
+
+      localStorage.setItem('govform_sync_provider', 'firebase');
       localStorage.setItem('govform_fb_project_id', pid);
       localStorage.setItem('govform_fb_api_key', key);
       configModal.classList.remove('active');
 
-      showFeedback('Firebase credentials saved! Initializing connection...', 'info');
-      initFirebase();
+      showFeedback('🔥 Firebase credentials saved! Connecting...', 'info');
+      await initSyncProvider();
     });
 
     // Init on page load
     window.addEventListener('DOMContentLoaded', () => {
-      initFirebase();
+      initSyncProvider();
     });
   </script>
 </body>

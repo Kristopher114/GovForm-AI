@@ -583,3 +583,16 @@ Directly aligns the live mobile application with **Chapter 4 (Table 4.5 Panel B 
   - Updated the Form Summary speaker button to narrate both the form's `purpose` and its critical `reminder` warning aloud.
 - **Expanded Touch Targets for Dense 8pt Forms (`src/app/camera.tsx` & `src/app/(tabs)/index.tsx`)**:
   - Added `hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}` to all interactive OCR bounding-box overlays to reduce tap friction on small text (directly addressing the `PEOU5 = 3.40` learnability finding).
+
+### 4. Resilient Hybrid Cloud Dispatcher & Self-Hosting Architecture (`server-portal.html`, `src/utils/remote-config.ts`, `settings.tsx`)
+
+- **Dual-Cloud Backend Support (Supabase & Firebase Firestore)**:
+  - Added full native REST support for **Supabase** (`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`) alongside existing **Firebase Firestore** (`EXPO_PUBLIC_FIREBASE_PROJECT_ID`).
+  - Supabase provides a 60-second setup with zero 2FA/IAM complexity and eliminates security rule locking (`allow read, write: if false;`).
+- **Enhanced Dispatcher Portal (`server-portal.html`)**:
+  - Upgraded the web dispatcher with a two-tab setup modal for both **⚡ Supabase** and **🔥 Firebase**.
+  - Includes a 1-click copyable SQL snippet for Supabase `server_config` table creation with Row Level Security disabled for easy local testing.
+  - Added periodic polling (every 15s) and instant live status indicators (`⚡ Supabase Synced` / `🔥 Firebase Synced`).
+- **Direct In-App Endpoint Override (`src/app/(tabs)/settings.tsx`)**:
+  - Re-introduced a manual URL input box with **Save & Connect** and **Sync from Cloud** buttons under the **Server 1 (Optimized) Endpoint** section, allowing testers and self-hosters to connect directly via Cloudflare Tunnel or local IP without requiring any external cloud database.
+  - Increased health check timeout to 7000ms to accommodate cross-country Cloudflare edge handshake latency on mobile cellular connections.
