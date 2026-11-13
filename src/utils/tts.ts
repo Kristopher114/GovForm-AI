@@ -18,6 +18,7 @@ export function getSpeechLocale(language: LanguageKey): string {
 }
 
 interface SpeakOptions {
+  rate?: number;
   onStart?: () => void;
   onDone?: () => void;
 }
@@ -36,10 +37,12 @@ export function speakText(
 
   Speech.stop();
 
+  const defaultRate = language === "Cebuano" ? 0.88 : 0.92;
+
   Speech.speak(cleaned, {
     language: getSpeechLocale(language),
     pitch: 1.0,
-    rate: 0.92,
+    rate: options.rate ?? defaultRate,
     onStart: options.onStart,
     onDone: options.onDone,
     onStopped: options.onDone,

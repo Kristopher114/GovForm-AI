@@ -12,7 +12,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/govform.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/govform.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.govform_ai_live",
@@ -22,7 +22,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/govform.png"
     },
     "plugins": [
       "expo-router",

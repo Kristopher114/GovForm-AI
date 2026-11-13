@@ -1,5 +1,7 @@
-// "About this form": a small chip under the scan header. It shows which supported
-// form was recognized; tapping it opens a bottom sheet with a plain-language summary.
+// "About this form": a prominent chip under the scan header. It shows which supported
+// form was recognized; tapping it opens a bottom sheet with a plain-language summary
+// and critical procedural safety warnings (Knowledge Base v1.1).
+import { LanguageKey } from "@/constants/translations";
 import { useLocalization } from "@/context/LocalizationContext";
 import { getFormById, getForms, getSummaryView } from "@/utils/form-summaries";
 import { speakText, stopSpeaking } from "@/utils/tts";
@@ -18,10 +20,16 @@ interface FormSummaryChipProps {
   detectedFormId?: string | null;
 }
 
+const LANGUAGE_OPTIONS: { key: LanguageKey; label: string }[] = [
+  { key: "English", label: "English" },
+  { key: "Tagalog", label: "Tagalog" },
+  { key: "Cebuano", label: "Bisaya" },
+];
+
 export default function FormSummaryChip({
   detectedFormId,
 }: FormSummaryChipProps) {
-  const { language, t } = useLocalization();
+  const { language, setLanguage, t } = useLocalization();
 
   const [override, setOverride] = useState<string | null | undefined>(
     undefined,
@@ -29,6 +37,7 @@ export default function FormSummaryChip({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [slowSpeech, setSlowSpeech] = useState(false);
 
   // Stop reading aloud when the sheet closes or the screen goes away.
   useEffect(() => {
@@ -59,7 +68,11 @@ export default function FormSummaryChip({
     }
     setSpeaking(true);
     const finish = () => setSpeaking(false);
-    speakText(view.text.purpose, language, { onDone: finish });
+    const fullNarration = `${view.text.purpose} ${view.text.reminder}`;
+    speakText(fullNarration, language, {
+      rate: slowSpeech ? 0.78 : undefined,
+      onDone: finish,
+    });
   };
 
   if (!resolvedId) return null;
@@ -71,6 +84,7 @@ export default function FormSummaryChip({
   ].filter((f): f is NonNullable<typeof f> => !!f);
 
   const form = getFormById(resolvedId);
+  const shortTitle = view?.text?.title ?? form?.form_name ?? t("form_summary");
 
   return (
     <View>
@@ -80,16 +94,18 @@ export default function FormSummaryChip({
           style={styles.chip}
           onPress={() => setSheetOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={t("form_chip_about")}
+          accessibilityLabel={t("form_summary")}
         >
-          <Ionicons name="document-text-outline" size={18} color="#1B5FA8" />
-          <Text style={styles.chipText} numberOfLines={1}>
-            {form.form_name}
-          </Text>
-          <Text style={styles.chipAbout} numberOfLines={1}>
-            {t("form_chip_about")}
-          </Text>
-          <Ionicons name="chevron-forward" size={15} color="#1B5FA8" />
+          <Ionicons name="shield-checkmark" size={19} color="#1B5FA8" />
+          <View style={styles.chipTextCol}>
+            <Text style={styles.chipTitle} numberOfLines={1}>
+              {shortTitle}
+            </Text>
+            <Text style={styles.chipSub} numberOfLines={1}>
+              {t("form_summary")} &bull; Tap for warnings &amp; ID checklist
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#1B5FA8" />
         </TouchableOpacity>
       ) : null}
 
@@ -121,6 +137,61 @@ export default function FormSummaryChip({
               </TouchableOpacity>
             </View>
 
+            {/* Instant Trilingual Switcher */}
+            <View style={styles.langSwitchRow}>
+              <View style={styles.langPillGroup}>
+                {LANGUAGE_OPTIONS.map((opt) => {
+                  const active = language === opt.key;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[
+                        styles.langPill,
+                        active && styles.langPillActive,
+                      ]}
+                      onPress={() => {
+                        stopSpeaking();
+                        setSpeaking(false);
+                        setLanguage(opt.key);
+                      }}
+                      accessibilityRole="button"
+                    >
+                      <Text
+                        style={[
+                          styles.langPillText,
+                          active && styles.langPillTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.slowButton,
+                  slowSpeech && styles.slowButtonActive,
+                ]}
+                onPress={() => setSlowSpeech((s) => !s)}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name="speedometer-outline"
+                  size={14}
+                  color={slowSpeech ? "#fff" : "#1B5FA8"}
+                />
+                <Text
+                  style={[
+                    styles.slowButtonText,
+                    slowSpeech && styles.slowButtonTextActive,
+                  ]}
+                >
+                  {slowSpeech ? "0.8x Slow" : "Normal"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {view?.text ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {view.isDraft && (
@@ -128,6 +199,23 @@ export default function FormSummaryChip({
                     <Text style={styles.draftText}>{t("form_draft")}</Text>
                   </View>
                 )}
+
+                {/* Critical Procedural Warning Banner at Top (Table 4.5 Panel B & Table 4.7) */}
+                {view.text.reminder ? (
+                  <View style={styles.warningCard}>
+                    <View style={styles.warningHeader}>
+                      <Ionicons
+                        name="warning"
+                        size={18}
+                        color="#B3261E"
+                      />
+                      <Text style={styles.warningTitle}>
+                        {t("form_label_reminder")}
+                      </Text>
+                    </View>
+                    <Text style={styles.warningBody}>{view.text.reminder}</Text>
+                  </View>
+                ) : null}
 
                 <View style={styles.sectionRow}>
                   <Text style={styles.label}>{t("form_label_purpose")}</Text>
@@ -177,11 +265,6 @@ export default function FormSummaryChip({
                   {t("form_label_submit")}
                 </Text>
                 <Text style={styles.body}>{view.text.where_to_submit}</Text>
-
-                <Text style={[styles.label, styles.gap]}>
-                  {t("form_label_reminder")}
-                </Text>
-                <Text style={styles.body}>{view.text.reminder}</Text>
               </ScrollView>
             ) : (
               <Text style={styles.unavailable}>{t("form_unavailable")}</Text>
@@ -254,22 +337,28 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     backgroundColor: "#EAF3FC",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#BFD9F2",
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: "#90C2F0",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
-  chipText: {
-    flexShrink: 0,
-    maxWidth: "62%",
+  chipTextCol: {
+    flex: 1,
+  },
+  chipTitle: {
+    color: "#114B8A",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  chipSub: {
     color: "#1B5FA8",
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 1,
   },
-  chipAbout: { flex: 1, textAlign: "right", color: "#1B5FA8", fontSize: 12 },
   overlay: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: {
@@ -278,7 +367,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingTop: 10,
-    maxHeight: "82%",
+    maxHeight: "86%",
   },
   handle: {
     width: 40,
@@ -293,9 +382,91 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   sheetTitle: { flex: 1, fontSize: 17, fontWeight: "700", color: "#111" },
+  langSwitchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 12,
+  },
+  langPillGroup: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2F6",
+    borderRadius: 12,
+    padding: 3,
+    flex: 1,
+  },
+  langPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+  langPillActive: {
+    backgroundColor: "#2182DE",
+  },
+  langPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+  },
+  langPillTextActive: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  slowButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#90C2F0",
+    backgroundColor: "#EAF3FC",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  slowButtonActive: {
+    backgroundColor: "#1B5FA8",
+    borderColor: "#1B5FA8",
+  },
+  slowButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1B5FA8",
+  },
+  slowButtonTextActive: {
+    color: "#fff",
+  },
+  warningCard: {
+    backgroundColor: "#FFF4F2",
+    borderWidth: 1.5,
+    borderColor: "#E57373",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  warningHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  warningTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#B3261E",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  warningBody: {
+    fontSize: 14,
+    color: "#5F1410",
+    lineHeight: 21,
+    fontWeight: "600",
+  },
   draftBox: {
     backgroundColor: "#FFF6DD",
     borderWidth: 1,

@@ -42,6 +42,7 @@ export type TranslationKey =
   | "research_thanks"
   | "research_empty"
   | "form_chip_about"
+  | "form_summary"
   | "form_unsure_chip"
   | "form_unsure_hint"
   | "form_picker_title"
@@ -115,7 +116,7 @@ export const translations: Record<
 > = {
   English: {
     app_title: "GovForm AI",
-    subtitle: "Take a picture of any government form and let AI help you.",
+    subtitle: "Take a photo of your form and we’ll guide you through it",
     btn_take_photo: "Take a Picture of the form",
     btn_choose_photo: "Choose Existing Photo",
     nav_home: "Home",
@@ -167,6 +168,7 @@ export const translations: Record<
     research_thanks: "Thanks for your feedback!",
     research_empty: "Nothing recorded yet.",
     form_chip_about: "About this form",
+    form_summary: "Form Summary",
     form_unsure_chip: "Which form is this?",
     form_unsure_hint: "This looks like one of these forms.",
     form_picker_title: "Choose the form",
@@ -253,7 +255,7 @@ export const translations: Record<
   Tagalog: {
     app_title: "GovForm AI",
     subtitle:
-      "Kunan ng picture ang anumang form ng gobyerno at hayaang tulungan ka ng AI.",
+      "Kunan ng picture ang iyong form at gagabayan ka namin.",
     btn_take_photo: "Kunan ng Picture ang Form",
     btn_choose_photo: "Pumili sa Gallery",
     nav_home: "Home",
@@ -306,6 +308,7 @@ export const translations: Record<
     research_thanks: "Salamat sa feedback mo!",
     research_empty: "Wala pang naitala.",
     form_chip_about: "Tungkol sa form na ito",
+    form_summary: "Buod ng Form",
     form_unsure_chip: "Anong form ito?",
     form_unsure_hint: "Mukhang isa ito sa mga form na ito.",
     form_picker_title: "Piliin ang form",
@@ -392,7 +395,7 @@ export const translations: Record<
   Cebuano: {
     app_title: "GovForm AI",
     subtitle:
-      "Picturi ang bisan unsang form sa gobyerno ug ipatabang kini sa AI.",
+      "Picturi ang imong form ug giyahan ka namo",
     btn_take_photo: "Picturi ang Form",
     btn_choose_photo: "Pangitag Litrato gikan sa Gallery",
     nav_home: "Home",
@@ -445,6 +448,7 @@ export const translations: Record<
     research_thanks: "Salamat sa imong feedback!",
     research_empty: "Wala pay natala.",
     form_chip_about: "Mahitungod niini nga form",
+    form_summary: "Katingbanan sa Form",
     form_unsure_chip: "Unsang form kini?",
     form_unsure_hint: "Morag usa kini niini nga mga form.",
     form_picker_title: "Pilia ang form",

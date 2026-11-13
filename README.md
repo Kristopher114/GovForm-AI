@@ -362,7 +362,7 @@ To test it on your device:
 ### 1. Offline Mode & Dictionary Caching
 
 - **Network Check**: Integrated `expo-network` to detect internet availability on app startup (`src/app/index.tsx`) and redirect to a new offline fallback screen (`src/app/offline.tsx`) if disconnected.
-- **Local Storage Cache**: Updated `src/utils/storage.ts` to cache LLM dictionary definitions (`saveWordDefinition`) locally when online. 
+- **Local Storage Cache**: Updated `src/utils/storage.ts` to cache LLM dictionary definitions (`saveWordDefinition`) locally when online.
 - **Offline Dictionary Retrieval**: Modified `<AiDictionaryModal />` to prioritize reading from the local cache (`getCachedWordDefinition`) when offline, allowing users to still read definitions of previously tapped words without an internet connection.
 - **Offline Forms History**: Refactored the forms list into a reusable `<RecentScansList />` component and added it to the offline screen so users can browse their previously scanned documents even without a connection.
 
@@ -376,23 +376,27 @@ To test it on your device:
 ## Update: October 3, 2026
 
 ### 1. Cloudflare Tunnels & Public Exposure
+
 - **Local Server Public Routing**: Evaluated and implemented a solution to securely expose the local Python OCR server (`local_ocr_server.py`) to the public internet using Cloudflare Tunnels (`cloudflared`). This bypasses the need for manual port forwarding on local routers.
 - **Robust URL Parsing**: Rewrote the `desktopIp` parsing logic in `src/app/camera.tsx` and `src/app/(tabs)/index.tsx`. The networking layer now dynamically detects if the user provides a raw IP or a full URL (like a Cloudflare tunnel address).
 - **Foolproof DNS Fallbacks**: Added safeguards to strip trailing slashes, trim accidental whitespace, and enforce case-insensitivity on the HTTP/HTTPS scheme (e.g. automatically handling mobile auto-capitalization errors like `Https://`).
 
 ### 2. Android Build Infrastructure
+
 - **JAVA_HOME Correction**: Identified and permanently resolved a local environment variable misconfiguration pointing to an outdated Android Studio JDK (`jb` vs `jbr`).
 - **Gradle Daemon Lock Recovery**: Handled a known Windows Gradle `java.net.BindException` (FileLockContentionHandler) caused by zombie Java processes holding port locks. Successfully purged the corrupted `android/.gradle` cache to restore native compilation capabilities.
 
 ## Update: October 4, 2026
 
 ### 1. Hybrid Document Classification (Visual + Keyword)
+
 - **OpenCV ORB Feature Matching (`local_ocr_server.py`)**: Upgraded the local Python server to perform structural visual matching of full documents using the ORB (Oriented FAST and Rotated BRIEF) algorithm. The server dynamically scans the `templates/` folder and loads full-page images as visual references.
 - **Robust False-Positive Filtering**: Replaced naive matching with `cv2.knnMatch` and implemented **Lowe's Ratio Test** (at a 0.75 ratio) to mathematically discard random visual similarities. Increased the good match threshold to guarantee that generic text documents are not falsely classified as official forms.
 - **Automated Subfolder Mapping**: The server recursively walks the `templates/` directory, automatically identifying forms grouped in subfolders (e.g., `templates/pmrf/...`) and accurately mapping them to their official string titles via a predefined dictionary.
 - **Keyword Fallback System (`classification.ts`)**: If visual classification fails or the app is running in native Google ML Kit mode, the app falls back to a highly optimized string-matching algorithm. It uses a strict hierarchy system (e.g. prioritizing COMELEC over Birth Certificates) to prevent cross-contamination if secondary pages contain overlapping keywords.
 
 ### 2. Animated Form Overlay & Factual Summaries
+
 - **Factual Summaries**: Developed a `getFormSummary` utility that acts as a hardcoded dictionary for all 7 supported government forms, providing instant, factual descriptions of what the scanned document is used for without needlessly wasting LLM cloud resources.
 - **Glassmorphism Sliding Sidebar**: Replaced the intrusive system `Alert.alert` with a premium, animated Left Sidebar Overlay built with `react-native-reanimated` (`SlideInLeft`). The sidebar utilizes translucent glassmorphism aesthetics, allowing the user to seamlessly interact with OCR bounding boxes while viewing the classification results.
 - **Unknown Document Handling**: Ensured the sleek sidebar gracefully slides in even when a document is unrecognizable, presenting a standardized "Unknown Document" state to maintain a consistent UI experience.
@@ -400,22 +404,27 @@ To test it on your device:
 ## Update: October 10, 2026 - App Functionality Audit & Branch Integration
 
 ### 1. Functional Audit: Core Capabilities (100% Operational)
+
 - **Local Device OCR via Google ML Kit**: The app fully supports on-device text recognition. The `buildBoxesFromMlKit` parser seamlessly groups tokens into coherent lines and sentences, mapping precise X/Y bounding box coordinates perfectly to the device screen.
 - **Hybrid OCR & Classification Backend**: The Python `local_ocr_server.py` (OpenCV ORB + Tesseract) gracefully acts as a secondary powerhouse. Images captured via camera or gallery are properly dispatched and classified.
 - **Offline Mode & Network Resilience**: Tested and verified. The `expo-network` module correctly intercepts offline events, preventing frozen API calls. An `OfflineBanner` provides immediate UI feedback while allowing the app's local offline capabilities to continue running.
 
 ### 2. Functional Audit: AI Dictionary & Language Parsing (100% Operational)
+
 - **Local Bisaya Dictionary Fallback**: Integrated a massive 5,400+ line JSON dictionary specifically for Cebuano/Bisaya. Using a sophisticated `phrase-match.ts` algorithm, tapping words instantly extracts context-aware definitions without needing an internet connection.
 - **Smart Phrase Matching**: Verified that tapping a single word (e.g., "Acknowledgement") correctly identifies and highlights multi-word phrases (e.g., "Acknowledgement Receipt") present on that document line.
-- **LLM Integration**: The LLM successfully falls back for out-of-dictionary words or Tagalog/English translation. 
+- **LLM Integration**: The LLM successfully falls back for out-of-dictionary words or Tagalog/English translation.
 - **TTS (Text-To-Speech)**: Integrated native TTS that accurately reads aloud definitions, example sentences, and synonyms.
 
 ### 3. Functional Audit: UI & Aesthetics (100% Operational)
+
 - **Glassmorphism Components**: Replaced clunky native alerts with buttery-smooth `react-native-reanimated` bottom sheets (FormSummaryChip, HowToUseFirstLaunch, AiDictionaryModal).
 - **Interactive Document Overlay**: The Google Lens-style UI successfully overlays interactive, scaled touchable hitboxes over original documents. Users can pan and zoom into the document naturally while the hitboxes remain mathematically locked in place.
 - **Accessibility (Large Text View)**: Verified a toggleable `LargeTextView` mode that extracts document sentences into large, highly readable blocks for visually impaired users.
 - **Metrics Tracking**: A local analytics engine successfully tracks scans, LLM API latency, and usage preferences.
+
 ### 4. Functional Audit: TypeScript Strict Safety & Edge Case Fixes (0 TS Errors)
+
 - **Metrics Tracking Hardening**: Fixed a silent failure in the analytics pipeline (`index.tsx`) where `logEvent` was incorrectly trying to pass an unregistered `formId` root property. Safely nested the property inside the `detail` object as explicitly defined by the `ResearchEvent` interface in `metrics.ts`.
 - **Classification Imports**: Repaired a missing `detectFormTypeByKeywords` import module linkage inside `index.tsx` preventing string-based fallback matching from compiling properly.
 - **Component Prop Validation**: Corrected an invalid `variant="circle"` property passed to `HowToUseButton`, standardizing it to the verified `"pill"` design token.
@@ -424,12 +433,14 @@ To test it on your device:
 ## Update: October 16, 2026 - Native Google ML Kit Document Scanner & Touch Freeze Fix
 
 ### 1. First-Party Native Document Scanner (`modules/expo-blur-detector`)
+
 - **Direct Google Play Services Integration**: Replaced third-party unmaintained scanner plugins with our own native implementation powered by `com.google.android.gms:play-services-mlkit-document-scanner:16.0.0` directly inside `modules/expo-blur-detector`.
 - **Modern Expo Modules API**: Implemented the scanner using Expo's modern `OnActivityResult` DSL in Kotlin (`ExpoBlurDetectorModule.kt`), completely removing deprecated React Native bridge imports (`BaseActivityEventListener`, `ReactApplicationContext`) to ensure seamless compatibility with Expo SDK 57 and Kotlin 2.1.
 - **Gallery Import Lockdown**: Enforced `.setGalleryImportAllowed(false)` natively to prevent users from bypassing the camera scanner with arbitrary gallery photos.
 - **TypeScript Type Definitions**: Added complete type signatures in `modules/expo-blur-detector/src/ExpoBlurDetectorModule.ts` for `scanDocument` options (`mode`, `galleryImportAllowed`, `maxNumDocuments`) and return payloads (`status`, `scannedImages`).
 
 ### 2. Scanner UI Freeze & Button Unresponsiveness Resolution
+
 - **Root Cause Analysis (Tapjacking Security)**: Investigated and documented why the scanner's bottom buttons (`Discard scan`, `Next`, and manual shutter) became unresponsive to touch. Google Play Services activities enforce `filterTouchesWhenObscured="true"`. If an active phone call, chat bubble, screen recorder, or floating overlay is running on the device (as detected via status bar indicators), Android flags touch events with `FLAG_WINDOW_IS_PARTIALLY_OBSCURED` and silently drops all clicks to protect against tapjacking.
 - **Camera Hardware Concurrency Solution**: In `src/app/camera.tsx`, introduced an `isAutoScanning` state that cleanly pauses/unmounts the background `<CameraView>` and disables pointer events (`pointerEvents="none"`) before launching Google's scanner. This releases the camera hardware HAL and detaches window-level gesture listeners so Google's activity has dedicated camera access without input dispatch contention.
 - **UI Thread Safety in Kotlin**: Wrapped `startIntentSenderForResult` inside `currentActivity.runOnUiThread` tied to the Activity lifecycle, preventing thread dispatch locks.
@@ -439,16 +450,19 @@ To test it on your device:
 ## Update: October 20, 2026 - Dynamic Cloudflare URL Sync & Server Settings Redesign
 
 ### 1. Dynamic Server URL Dispatcher Portal (`server-portal.html`)
+
 - **Remote Configuration Solution**: Solved the issue of temporary Cloudflare tunnels (`*.trycloudflare.com`) changing URLs on every restart by building a dedicated, portable PC web portal (`server-portal.html`).
 - **Zero-Install Web App**: Developed as a standalone single-page application using modern glassmorphic styling, runnable in any browser (Chrome/Edge) without needing local build steps or npm installations.
 - **One-Click Publishing**: Allows users to paste new tunnel URLs (or choose quick presets like Hotspot `192.168.137.1:8000`), run connection ping tests, and publish the active endpoint straight to Google Cloud Firestore (`settings/server`).
 - **Browser Credentials Persistence**: Automatically saves Firebase credentials (`projectId`, `apiKey`) to the browser's `localStorage` so they only need to be entered once.
 
 ### 2. Lightweight Firestore REST Sync (`src/utils/remote-config.ts`)
+
 - **Zero-Dependency Integration**: Implemented `fetchRemoteServerUrl` and `syncRemoteServerUrl` using Google's official Firestore REST API via native `fetch()`. This completely bypasses the need for heavy `@react-native-firebase` or Firebase JS SDK npm packages, protecting the app from build conflicts and keeping the APK bundle lightweight.
 - **Auto-Sync & Local Storage**: Automatically retrieves the latest endpoint from Firestore and syncs it into device `AsyncStorage` (`saveDesktopIp`).
 
 ### 3. Server Settings Redesign & URL Input Removal (`src/app/(tabs)/settings.tsx`)
+
 - **Removed Manual URL Text Input**: Completely eliminated the manual text input field to prevent mobile typing errors and streamline configuration.
 - **Read-Only Synced Status Card**: Replaced the input field with a sleek "Cloud Synced URL" status card displaying the active endpoint and a 1-tap refresh button (`cloud-download-outline`) for immediate synchronization.
 - **Standardized Server Mode Naming**:
@@ -456,10 +470,12 @@ To test it on your device:
   - **Server 2 (Default)**: Uses fast, on-device offline Google ML Kit OCR.
 
 ### 4. Permanent Form Draft Summaries & Research Mode Cleanup
+
 - **Streamlined UI**: Commented out the Research Mode toggle section in `settings.tsx` to maintain a clean, distraction-free settings screen for normal users.
 - **Permanently Enabled Draft Summaries**: Updated `src/utils/metrics.ts` (`canShowDraftSummaries` and `isShowDraftsEnabled`) to permanently return `true`, guaranteeing that all government form summaries and drafts remain accessible across the app without requiring manual research switches.
 
 ### 5. Live Server Status Indicator & Health Checks (`local_ocr_server.py` & `settings.tsx`)
+
 - **FastAPI & Flask Health Endpoints**: Added dedicated `/health` routes returning `{"status": "online"}` across both `local_ocr_server.py` and `server.py` for lightweight, non-blocking health checks.
 - **Real-Time Visual Status Pill**: Integrated a dynamic status badge directly next to the **Server 1 (Optimized)** option in `src/app/(tabs)/settings.tsx`:
   - 🟢 **Active**: Python server and Cloudflare tunnel are live and responding.
@@ -468,6 +484,7 @@ To test it on your device:
 - **Automated Health Triggers**: Background health checks trigger automatically upon entering the Settings screen (`useFocusEffect`), syncing from Firestore, or selecting Server 1.
 
 ### 6. Thesis-Driven Operational Workflow & Seamless Client-Side Fallback (`runStartupHostWorkflow`)
+
 - **Startup Connectivity Verification**: Directly aligns with the thesis specification:
   > *"The operational workflow begins when the user launches the mobile application. The system attempts to connect to the primary processing host. If the backend server is down, offline, or temporarily unavailable, the application immediately displays an informative service status alert and seamlessly routes image processing to the on-device Google ML Kit engine as a local client-side fallback."*
 - **App Launch Lifecycle (`src/app/index.tsx` & `src/app/(tabs)/index.tsx`)**:
@@ -481,6 +498,7 @@ To test it on your device:
   - Full translations for the service status notice across **English**, **Tagalog**, and **Cebuano** in `src/constants/translations.ts`.
 
 ### 7. Form-Aware Contextual Grounding for Multilingual AI Dictionary (`llm.ts`)
+
 - **Semantic Grounding via Document Classification**:
   - Connected the classification engine (`detectedFormId`) directly into the Groq Llama-3 dictionary prompt pipeline.
   - Automatically queries `getFormById` from `form-summaries.json` to inject the official document name, issuing agency, and 1-sentence form purpose into the prompt context.
@@ -490,6 +508,79 @@ To test it on your device:
   - Strict system rules ensure explanations remain short, natural, conversational, and free of bureaucratic/legalistic jargon across **English**, **Tagalog**, and **Bisaya/Cebuano**.
   - Form-specific sample data generation (e.g., realistic fake PhilHealth ID format or complete names).
 
+## Update: October 26, 2026 - LLM Dual-API Architecture (Groq + Gemini) & Storage Integrity Audit
+
+### 1. Dual-Provider LLM Engine Audit & Active Model Migration (`src/utils/llm.ts`)
+
+- **Hybrid Dual-Engine Architecture**:
+  - The application is engineered with a fault-tolerant multi-provider caller (`callLlmJson`): Groq Cloud serves as the primary inference engine (`EXPO_PUBLIC_GROQ_API_KEY`), and Google Gemini serves as the automatic secondary fallback (`EXPO_PUBLIC_GEMINI_API_KEY`).
+  - If Groq experiences rate limits, outages, or missing keys, the request seamlessly transitions to Google Gemini without interrupting the user.
+- **Fixed Gemini 404 Model Retirement**:
+  - Investigated and resolved a critical failover bug where `GEMINI_MODELS` used deprecated model identifiers (`gemini-1.5-flash` and `gemini-2.0-flash`). Google retired these endpoints in 2026, causing all Gemini fallback calls to fail with HTTP 404 (Model Not Found).
+  - Migrated `GEMINI_MODELS` to active, verified endpoints: `gemini-3.6-flash`, `gemini-3.8-flash`, `gemini-flash-latest`, and `gemini-2.5-flash-lite`. Tested live and verified 100% operational with valid multilingual JSON outputs.
+- **Groq Model Priority & Resilient Failover**:
+  - Reordered `GROQ_MODELS` to prioritize `qwen/qwen3.8-27b` first, delivering rapid direct JSON outputs without reasoning-token latency overhead, followed by `openai/gpt-oss-120b` and `openai/gpt-oss-20b`.
+  - Updated `callGroqJson` to treat HTTP 404 or 400 errors as retryable model failover triggers (`continue`), preventing unexpected model status codes from aborting the fallback loop early.
+
+### 2. Recent Scans Storage Integrity & Recents Tab Fix (`src/utils/storage.ts`)
+
+- **Eliminated Race Condition on Save**:
+  - Diagnosed why recent scans previously did not appear upon opening the "Recents" tab: `saveRecentForm` was triggered asynchronously in the background without `await`. When users tapped the shutter and immediately navigated to Recents, the disk write and index update were still in flight.
+  - Awaited `saveRecentForm` in both `src/app/camera.tsx` and `src/app/(tabs)/index.tsx`, guaranteeing records are fully committed before navigation occurs.
+- **Form ID Normalization & Context Preservation**:
+  - Resolved an issue where `displayTitle` (e.g. `"PhilHealth Member Registration Form (PMRF)"`) was mistakenly passed into storage instead of the raw `formId` (e.g. `"philhealth-pmrf"`).
+  - Passing `formId` ensures the saved scan maintains exact classification metadata, allowing the AI Dictionary and form summaries sheet to look up the correct document agency and purpose when opened from history.
+- **Hardened Legacy Data Migration**:
+  - Fixed `migrateLegacyRecents` to convert `form.id` using `String(f.id)`, preventing legacy scans with numeric timestamp IDs from being skipped or wiped during format upgrades.
+  - Added defensive date formatting fallbacks and safeguarded `(boundingBoxes || []).map(...)` against null or undefined payloads.
+
+### 3. Defensive UI Stability & Contextual Enhancements
+
+- **Null-Safe Word Count Rendering**:
+  - Replaced direct array length accesses with optional chaining `(item.words?.length ?? 0)` across `src/components/recent-scans-list.tsx` and `src/app/form-details.tsx`, preventing unhandled runtime crashes if historical records contained corrupted word data.
+- **Line Context in Historical Scans**:
+  - Enhanced `src/app/form-details.tsx` to forward `wordLine` and `wordOccurrence` directly to `AiDictionaryModal` when tapping words on saved historical scans, ensuring full phrase-matching and surrounding text context are retained in offline history.
+- **Form Summary Chip UI Polish**:
+  - Updated `src/components/form-summary-sheet.tsx` to display a clean, localized "Form Summary" label (`form_summary`) across English, Tagalog, and Bisaya instead of long redundant form titles on the floating pill.
+  - Centered camera shutter controls and removed obsolete auto-scan overlay buttons in `src/app/camera.tsx`.
 
 
+---
 
+## Update: November 13, 2026 - Thesis Defense Alignment (Knowledge Base v1.1 Remediation, Dialect Tuning & Accessibility UI)
+
+### 1. Knowledge Base v1.1 Frontline Safety Remediation (`src/data/form-summaries.json` & `src/utils/classification.ts`)
+
+Directly aligns the live mobile application with **Chapter 4 (Table 4.5 Panel B & Table 4.7 Frontline Safety Audit)** of the final thesis manuscript (`10th_version`):
+
+- **Negative Prohibition Warnings (Procedural Error Elimination):**
+  - **COMELEC CEF-1A (`comelec-cef1`)**: Added explicit trilingual (`en`, `tl`, `ceb`) warnings instructing applicants **NOT to sign or affix thumbprints in Part 2 (Oath) at home** (must be signed strictly in front of the Election Officer) and to leave **Part 3 & Part 4 (ERB / Election Officer Action)** completely blank.
+  - **PhilHealth PMRF (`philhealth-pmrf`)**: Added explicit trilingual warnings instructing applicants to write all entries in **UPPERCASE / CAPITAL LETTERS** (using `'N/A'` when not applicable) and to leave the **`FOR PHILHEALTH USE ONLY` (Part IV)** box completely blank.
+- **Statutory Zero-Fee & Conditional Auxiliary Affidavit Disclosures (RA 11032 / NIRC § 188):**
+  - Updated `philhealth-pmrf` and `comelec-cef1` reminders across all 3 languages to clarify that while official agency filing is **FREE (`₱0.00` under RA 11032)**, applicants whose cases require a separate notarized **Affidavit** (e.g., Late Registration or Sworn Declaration of Income) should prepare **`₱30.00` for Documentary Stamp Tax (DST)** plus **`₱50–₱100` for private notary fees**.
+- **Mandatory ID Rules vs. Cedula Exclusions (COMELEC Res. No. 10963 § 16):**
+  - Updated `comelec-cef1` preparation checklists to explicitly state that **Barangay ID / Barangay Certification with photo and signature IS accepted**, whereas **Cedula (Community Tax Certificate) and Police Clearance are NOT accepted** as valid IDs for voter registration.
+  - Updated `philhealth-pmrf` preparation checklists to note that while a primary government ID or PSA Birth Certificate is required at PhilHealth, citizens without primary ID who request a preliminary Barangay Residency Certificate may be asked for a Cedula at the barangay hall.
+- **PSA Shared Requester Page (`psa-page2` — "Needs Page 1"):**
+  - Added keyword detection in `src/utils/classification.ts` and a dedicated trilingual entry in `src/data/form-summaries.json` for `psa-page2`. When a user scans the shared back/requester page of a PSA form without Page 1, the app identifies it as the **PSA Shared Requester Page** and prompts the user to flip and scan Page 1 for specific Birth, Marriage, or Death guidance.
+
+### 2. Conversational Northern Mindanao Cebuano & Restricted-Field AI Guardrails (`src/utils/llm.ts`)
+
+- **Northern Mindanao / Iligan City Cebuano Dialect Tuning (Addressing Table 4.8 Clarity Score = 4.00):**
+  - Refined `buildPrompts` and `buildSentencePrompts` in `src/utils/llm.ts` to mandate everyday conversational Northern Mindanao / Iligan City Bisaya rather than deep or archaic literary Cebuano, retaining natural English bureaucratic loanwords (`form`, `ID`, `signature`, `agency`) in parentheses when helpful for senior citizens.
+- **Actionable Restricted-Box & Jurat Warnings in Term Definitions:**
+  - Instructed the LLM system prompt to detect agency-only headers (`FOR PHILHEALTH USE ONLY`, `ERB`, `Part 3`, `Part 4`, `Action Taken`, `Processed By`) and immediately warn the user in the first sentence to **LEAVE IT BLANK**, returning `"⚠️ LEAVE BLANK (FOR AGENCY STAFF ONLY)"` in `sample_data`.
+  - Added `formReminder` into `TapContext` grounding and wired `formId={detectedFormId}` into `<AiDictionaryModal />` across both live camera scans (`src/app/camera.tsx`) and gallery scans (`src/app/(tabs)/index.tsx`).
+
+### 3. UI/UX & Senior Accessibility Enhancements (`form-summary-sheet.tsx`, `ai-dictionary-modal.tsx`, `tts.ts`, `camera.tsx`)
+
+- **High-Contrast Red Procedural Warning Card (`src/components/form-summary-sheet.tsx`)**:
+  - Moved the form's `reminder` section to the top of the Form Summary bottom sheet inside a high-contrast red/amber alert card (`#FFF4F2` background, `#E57373` border, warning icon) so critical prohibitions are immediately visible upon scanning.
+  - Upgraded the summary chip under the scan header to display the recognized document's title alongside a prompt to tap for warnings and ID checklists.
+- **Instant 0ms Trilingual Switcher Inside Modals (`form-summary-sheet.tsx` & `ai-dictionary-modal.tsx`)**:
+  - Added a 3-pill segmented language bar (`English | Tagalog | Bisaya`) inside both the **Form Summary Sheet** and the **AI Dictionary Modal**. Because `defineWordWithLLM` fetches all three languages in a single JSON payload, switching languages inside the modal updates the UI in **0 ms** without triggering a new network request.
+- **Slow Speech (`0.8x Slow`) TTS Toggle & Full Summary Narration (`src/utils/tts.ts`)**:
+  - Added a `0.8x Slow / Normal` speech rate toggle next to the language switcher in both modals and tuned default Cebuano `fil-PH` playback to `0.88x` so elderly users can clearly follow spoken Bisaya/Tagalog guidance.
+  - Updated the Form Summary speaker button to narrate both the form's `purpose` and its critical `reminder` warning aloud.
+- **Expanded Touch Targets for Dense 8pt Forms (`src/app/camera.tsx` & `src/app/(tabs)/index.tsx`)**:
+  - Added `hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}` to all interactive OCR bounding-box overlays to reduce tap friction on small text (directly addressing the `PEOU5 = 3.40` learnability finding).

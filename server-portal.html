@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GovForm AI - Server URL Dispatcher</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
   <!-- Firebase SDK via CDN -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -37,7 +40,7 @@
 
     body {
       background-color: var(--bg-dark);
-      background-image: 
+      background-image:
         radial-gradient(at 0% 0%, rgba(33, 130, 222, 0.12) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
       color: var(--text-main);
@@ -457,11 +460,19 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.98); }
-      to { opacity: 1; transform: scale(1); }
+      from {
+        opacity: 0;
+        transform: scale(0.98);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
@@ -470,7 +481,8 @@
       <div class="header-logo">
         <div class="logo-icon">
           <svg viewBox="0 0 24 24">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+            <path
+              d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
           </svg>
         </div>
         <div class="header-title">
@@ -504,20 +516,16 @@
           <span id="lastUpdatedDisplay">Never updated</span>
         </label>
         <div class="input-wrapper">
-          <input 
-            type="text" 
-            id="urlInput" 
-            class="text-input" 
-            placeholder="https://your-tunnel.trycloudflare.com or http://192.168.137.1:8000"
-            autocomplete="off"
-            spellcheck="false"
-          >
+          <input type="text" id="urlInput" class="text-input"
+            placeholder="https://your-tunnel.trycloudflare.com or http://192.168.137.1:8000" autocomplete="off"
+            spellcheck="false">
           <button class="paste-btn" id="pasteBtn" type="button">Paste</button>
         </div>
 
         <!-- Quick Presets -->
         <div class="preset-chips">
-          <button class="preset-chip" type="button" data-val="http://192.168.137.1:8000">192.168.137.1:8000 (Hotspot)</button>
+          <button class="preset-chip" type="button" data-val="http://192.168.137.1:8000">192.168.137.1:8000
+            (Hotspot)</button>
           <button class="preset-chip" type="button" data-val="http://localhost:8000">localhost:8000 (Local)</button>
         </div>
       </div>
@@ -546,7 +554,8 @@
       </div>
       <div class="modal-body">
         <p class="modal-desc">
-          Paste your Web App config from <b>Firebase Console > Project Settings > Your Apps</b>. These are saved locally in your browser.
+          Paste your Web App config from <b>Firebase Console > Project Settings > Your Apps</b>. These are saved locally
+          in your browser.
         </p>
 
         <label style="font-size:12px; font-weight:600; color:#AAA;">Firebase Project ID</label>
@@ -574,7 +583,7 @@
     const testPingBtn = document.getElementById('testPingBtn');
     const publishBtn = document.getElementById('publishBtn');
     const feedbackMessage = document.getElementById('feedbackMessage');
-    
+
     // Modal DOM
     const openConfigBtn = document.getElementById('openConfigBtn');
     const closeConfigBtn = document.getElementById('closeConfigBtn');
@@ -765,4 +774,5 @@
     });
   </script>
 </body>
+
 </html>

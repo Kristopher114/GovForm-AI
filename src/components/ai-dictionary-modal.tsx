@@ -1,4 +1,4 @@
-import { TranslationKey } from "@/constants/translations";
+import { LanguageKey, TranslationKey } from "@/constants/translations";
 import { useLocalization } from "@/context/LocalizationContext";
 import { lookupDictionary } from "@/utils/glossary";
 import {
@@ -35,6 +35,12 @@ import {
 
 type SpeakSection = "definition" | "example" | "sentence";
 type SentenceState = "idle" | "loading" | "done" | "error";
+
+const LANGUAGE_OPTIONS: { key: LanguageKey; label: string }[] = [
+  { key: "English", label: "English" },
+  { key: "Tagalog", label: "Tagalog" },
+  { key: "Cebuano", label: "Bisaya" },
+];
 
 // Maps an error code from llm.ts to a translated message key.
 const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
@@ -95,7 +101,7 @@ export default function AiDictionaryModal({
   formId,
   onClose,
 }: AiDictionaryModalProps) {
-  const { language, t } = useLocalization();
+  const { language, setLanguage, t } = useLocalization();
 
   // Window size: normal (about half the screen) or expanded (almost full).
   // Drag the handle up/down, tap it, or use the Expand/Collapse button.
@@ -127,6 +133,10 @@ export default function AiDictionaryModal({
   const [speakingSection, setSpeakingSection] = useState<SpeakSection | null>(
     null,
   );
+  const [slowSpeech, setSlowSpeech] = useState(false);
+
+  // Track which word+line+occurrence is currently loaded in llmResult
+  const loadedTargetKeyRef = useRef<string>("");
 
   // "Explain this sentence": plain-language version of the form text around the word
   const [sentenceState, setSentenceState] = useState<SentenceState>("idle");
@@ -138,14 +148,24 @@ export default function AiDictionaryModal({
   useEffect(() => {
     if (!visible || !wordText) return;
 
-    // Set when this run is replaced by a newer one (another word / language /
-    // closed modal). A replaced run must never touch the screen again, so a slow
-    // answer for word A can't appear under word B.
+    const occurrence = wordOccurrence ?? 0;
+    const lineContext = wordLine && wordLine.trim() ? wordLine : wordSentence;
+    const targetKey = `${wordText}::${lineContext ?? ""}::${occurrence}::${retryCount}`;
+
+    // Instant 0ms language switch: if we already have a loaded AI/cached result
+    // for this exact tapped word that includes the newly selected language, keep it!
+    if (
+      loadedTargetKeyRef.current === targetKey &&
+      llmResult &&
+      hasUsableResult(llmResult, language)
+    ) {
+      stopSpeaking();
+      setSpeakingSection(null);
+      return;
+    }
+
     let cancelled = false;
     const controller = new AbortController();
-    const occurrence = wordOccurrence ?? 0;
-    // Line the word is on; older saved scans only have the text block.
-    const lineContext = wordLine && wordLine.trim() ? wordLine : wordSentence;
 
     const fetchDefinition = async () => {
       stopSpeaking();
@@ -156,7 +176,6 @@ export default function AiDictionaryModal({
       setRating(null);
       setIsLlmLoading(true);
 
-      // Research mode: how long this lookup took and where the answer came from.
       const startedAt = Date.now();
       const record = (source: string, termShown: string, detail?: string) => {
         if (cancelled) return;
@@ -182,6 +201,7 @@ export default function AiDictionaryModal({
         );
         if (fromDictionary) {
           record("dictionary", fromDictionary.term ?? wordText);
+          loadedTargetKeyRef.current = targetKey;
           setLlmResult(fromDictionary);
           return;
         }
@@ -202,6 +222,7 @@ export default function AiDictionaryModal({
 
         if (cached && hasUsableResult(cached, language)) {
           record("cache", cached.term ?? wordText);
+          loadedTargetKeyRef.current = targetKey;
           setLlmResult(cached);
           return;
         }
@@ -225,6 +246,7 @@ export default function AiDictionaryModal({
           if (cancelled) return;
           if (approx) {
             record("cache_approx", approx.term ?? wordText);
+            loadedTargetKeyRef.current = targetKey;
             setLlmResult(approx);
             setIsApproximate(true);
             return;
@@ -247,6 +269,7 @@ export default function AiDictionaryModal({
 
         // Show the result first; a cache failure must not hide a good answer.
         record("ai", result.term ?? wordText);
+        loadedTargetKeyRef.current = targetKey;
         setLlmResult(result);
 
         // 3. Save to cache for future offline use
@@ -277,6 +300,7 @@ export default function AiDictionaryModal({
     wordSentence,
     wordLine,
     wordOccurrence,
+    formId,
     language,
     retryCount,
   ]);
@@ -287,6 +311,7 @@ export default function AiDictionaryModal({
     if (!visible) {
       stopSpeaking();
       setSpeakingSection(null);
+      loadedTargetKeyRef.current = "";
     }
     return () => stopSpeaking();
   }, [visible]);
@@ -297,6 +322,7 @@ export default function AiDictionaryModal({
     setLlmResult(null);
     setLlmErrorKey(null);
     setIsApproximate(false);
+    loadedTargetKeyRef.current = "";
     onClose();
   };
 
@@ -343,6 +369,10 @@ export default function AiDictionaryModal({
     typeof llmResult?.sample_data === "string"
       ? llmResult.sample_data.trim()
       : "";
+  const isWarningSample =
+    sampleData.startsWith("⚠️") ||
+    sampleData.toUpperCase().includes("LEAVE BLANK") ||
+    sampleData.toUpperCase().includes("DO NOT");
 
   // Is research mode on? (decides whether the thumbs up/down buttons are shown)
   useEffect(() => {
@@ -477,6 +507,7 @@ export default function AiDictionaryModal({
       setSpeakingSection((current) => (current === section ? null : current));
 
     speakText(text, language, {
+      rate: slowSpeech ? 0.78 : undefined,
       onDone: finish,
     });
   };
@@ -523,6 +554,58 @@ export default function AiDictionaryModal({
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Instant Trilingual Switcher + Slow Speech Toggle */}
+          <View style={styles.langSwitchRow}>
+            <View style={styles.langPillGroup}>
+              {LANGUAGE_OPTIONS.map((opt) => {
+                const active = language === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.langPill, active && styles.langPillActive]}
+                    onPress={() => {
+                      stopSpeaking();
+                      setSpeakingSection(null);
+                      setLanguage(opt.key);
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text
+                      style={[
+                        styles.langPillText,
+                        active && styles.langPillTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.slowButton,
+                slowSpeech && styles.slowButtonActive,
+              ]}
+              onPress={() => setSlowSpeech((s) => !s)}
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name="speedometer-outline"
+                size={14}
+                color={slowSpeech ? "#fff" : "#1B5FA8"}
+              />
+              <Text
+                style={[
+                  styles.slowButtonText,
+                  slowSpeech && styles.slowButtonTextActive,
+                ]}
+              >
+                {slowSpeech ? "0.8x Slow" : "Normal"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {wordText && (
@@ -713,13 +796,33 @@ export default function AiDictionaryModal({
                 </>
               )}
 
-              {/* Fake sample entry (only for fill-in form fields) */}
+              {/* Fake sample entry (or red warning when restricted staff-only box) */}
               {sampleData !== "" && (
-                <View style={styles.sampleBox}>
-                  <Text style={[styles.sectionTitle, { marginBottom: 4 }]}>
-                    {t("label_sample_entry")}
+                <View
+                  style={[
+                    styles.sampleBox,
+                    isWarningSample && styles.warningSampleBox,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { marginBottom: 4 },
+                      isWarningSample && { color: "#B3261E" },
+                    ]}
+                  >
+                    {isWarningSample
+                      ? "⚠️ Action Warning"
+                      : t("label_sample_entry")}
                   </Text>
-                  <Text style={styles.sampleText}>{sampleData}</Text>
+                  <Text
+                    style={[
+                      styles.sampleText,
+                      isWarningSample && styles.warningSampleText,
+                    ]}
+                  >
+                    {sampleData}
+                  </Text>
                 </View>
               )}
 
@@ -838,8 +941,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    minHeight: "50%",
-    maxHeight: "80%",
+    minHeight: "54%",
+    maxHeight: "84%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -850,7 +953,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   modalTitle: {
     fontSize: 20,
@@ -897,14 +1000,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  langSwitchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 14,
+  },
+  langPillGroup: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2F6",
+    borderRadius: 12,
+    padding: 3,
+    flex: 1,
+  },
+  langPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+  langPillActive: {
+    backgroundColor: "#2182DE",
+  },
+  langPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+  },
+  langPillTextActive: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  slowButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#90C2F0",
+    backgroundColor: "#EAF3FC",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  slowButtonActive: {
+    backgroundColor: "#1B5FA8",
+    borderColor: "#1B5FA8",
+  },
+  slowButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1B5FA8",
+  },
+  slowButtonTextActive: {
+    color: "#fff",
+  },
   selectedWordRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: 18,
   },
   selectedWord: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
     color: "#2182DE",
     textAlign: "center",
@@ -1103,10 +1261,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#BFD9F2",
   },
+  warningSampleBox: {
+    backgroundColor: "#FFF4F2",
+    borderColor: "#E57373",
+    borderWidth: 1.5,
+  },
   sampleText: {
     fontSize: 18,
     fontWeight: "600",
     color: "#1B5FA8",
+  },
+  warningSampleText: {
+    color: "#B3261E",
+    fontSize: 16,
+    fontWeight: "700",
   },
   synonymsText: {
     fontSize: 14,

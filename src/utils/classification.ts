@@ -5,6 +5,7 @@ export const FORM_TYPE_TO_ID: Record<string, string> = {
   "PSA Application Form for Birth Certificate": "psa-birth",
   "PSA Application Form for Marriage Certificate": "psa-marriage",
   "PSA Application Form for Death Certificate": "psa-death",
+  "PSA Shared Requester Page (Needs Page 1)": "psa-page2",
   "COMELEC Voter Registration Form (CEF-1A)": "comelec-cef1",
   "COMELEC Application for Transfer of Registration": "comelec-supp",
   "PHILHEALTH Member Registration Form (PMRF)": "philhealth-pmrf",
@@ -12,6 +13,7 @@ export const FORM_TYPE_TO_ID: Record<string, string> = {
   "psa-birth": "psa-birth",
   "psa-marriage": "psa-marriage",
   "psa-death": "psa-death",
+  "psa-page2": "psa-page2",
   "comelec-cef1": "comelec-cef1",
   "comelec-supp": "comelec-supp",
   "philhealth-pmrf": "philhealth-pmrf",
@@ -22,6 +24,7 @@ export const FORM_ID_TO_DISPLAY_NAME: Record<string, string> = {
   "psa-birth": "PSA Application Form for Birth Certificate",
   "psa-marriage": "PSA Application Form for Marriage Certificate",
   "psa-death": "PSA Application Form for Death Certificate",
+  "psa-page2": "PSA Shared Requester Page (Needs Page 1)",
   "comelec-cef1": "COMELEC Voter Registration Form (CEF-1A)",
   "comelec-supp": "COMELEC Application for Transfer of Registration",
   "philhealth-pmrf": "PHILHEALTH Member Registration Form (PMRF)",
@@ -53,7 +56,8 @@ export const detectFormTypeByKeywords = (fullText: string): string => {
   if (
     upperText.includes("SUPPLEMENTARY/UPDATING") ||
     upperText.includes("EXISTING REGISTRATION RECORDS") ||
-    upperText.includes("TRANSFER OF REGISTRATION")
+    upperText.includes("TRANSFER OF REGISTRATION") ||
+    upperText.includes("ACCESSIBLE POLLING PLACE")
   ) {
     return "comelec-supp";
   }
@@ -108,6 +112,14 @@ export const detectFormTypeByKeywords = (fullText: string): string => {
     return "psa-death";
   }
 
+  // 8. PSA Shared Requester Page (Page 2 without Page 1)
+  if (
+    (upperText.includes("PHILIPPINE STATISTICS AUTHORITY") || upperText.includes("REQUESTER")) &&
+    (upperText.includes("PRIVACY NOTICE") || upperText.includes("PURPOSE OF REQUEST") || upperText.includes("REQUESTER'S") || upperText.includes("PRINTED NAME AND SIGNATURE"))
+  ) {
+    return "psa-page2";
+  }
+
   return "UNKNOWN";
 };
 
@@ -120,6 +132,8 @@ export const getFormSummary = (formType: string): string => {
       return "This is an official request form used by the PSA to issue a certified copy of a marriage certificate. It requires the names of the spouses, the date and place of marriage, and requester details.";
     case "psa-death":
       return "This is an official request form used by the PSA to issue a certified copy of a death certificate. It collects the deceased's details, date and place of death, and the requester's relationship to the deceased.";
+    case "psa-page2":
+      return "This is the shared back/requester page (Page 2) used across PSA Birth, Marriage, and Death Certificate request forms. Please also scan Page 1 for specific certificate instructions.";
     case "comelec-cef1":
       return "This is the primary application form for registering to vote in the Philippines. It collects personal demographics, citizenship status, biometrics (thumbprints), and a sworn oath of eligibility.";
     case "comelec-supp":

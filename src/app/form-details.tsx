@@ -25,6 +25,8 @@ export default function FormDetailsScreen() {
   // LLM State for modal
   const [selectedWordText, setSelectedWordText] = useState<string | null>(null);
   const [selectedWordSentence, setSelectedWordSentence] = useState<string | undefined>(undefined);
+  const [selectedWordLine, setSelectedWordLine] = useState<string | undefined>(undefined);
+  const [selectedWordOccurrence, setSelectedWordOccurrence] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const loadForm = async () => {
@@ -40,14 +42,20 @@ export default function FormDetailsScreen() {
   const handleWordTap = (wordData: HarvestedWord | string) => {
     const wordText = typeof wordData === 'string' ? wordData : wordData.text;
     const wordSentence = typeof wordData === 'string' ? undefined : wordData.sentence;
+    const wordLine = typeof wordData === 'string' ? undefined : wordData.line;
+    const wordOccurrence = typeof wordData === 'string' ? undefined : wordData.occurrence;
 
     setSelectedWordText(wordText);
     setSelectedWordSentence(wordSentence);
+    setSelectedWordLine(wordLine);
+    setSelectedWordOccurrence(wordOccurrence);
   };
 
   const closeModal = () => {
     setSelectedWordText(null);
     setSelectedWordSentence(undefined);
+    setSelectedWordLine(undefined);
+    setSelectedWordOccurrence(undefined);
   };
 
   if (isLoading) {
@@ -84,11 +92,11 @@ export default function FormDetailsScreen() {
         <Text style={styles.dateText}>{form.dateStr}</Text>
       </View>
       <Text style={styles.summaryText}>
-        {form.words.length} words harvested. Tap any word to define it using GovForm AI.
+        {form.words?.length ?? 0} words harvested. Tap any word to define it using GovForm AI.
       </Text>
 
       <FlatList
-        data={form.words}
+        data={form.words || []}
         keyExtractor={(item, index) => {
           const text = typeof item === 'string' ? item : item.text;
           return `${index}-${text}`;
@@ -110,6 +118,8 @@ export default function FormDetailsScreen() {
         visible={selectedWordText !== null}
         wordText={selectedWordText}
         wordSentence={selectedWordSentence}
+        wordLine={selectedWordLine}
+        wordOccurrence={selectedWordOccurrence}
         formId={form?.formId || form?.title}
         onClose={closeModal}
       />

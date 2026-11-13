@@ -512,17 +512,15 @@ export default function CameraOCRScreen() {
         const formId = getFormIdFromType(formType);
         const displayTitle = getFormDisplayName(formType);
 
-        saveRecentForm(
-          photoUri,
-          data,
-          displayTitle !== "Scanned Document" ? displayTitle : undefined,
-        ).catch((err) => console.log("Failed to save to recents", err));
+        await saveRecentForm(photoUri, data, formId).catch((err) =>
+          console.warn("Failed to save to recents", err),
+        );
 
         setDetectedFormId(formId);
         logEvent({ event: "scan", detail: formId ?? undefined });
       } catch (err) {
-        saveRecentForm(photoUri, data).catch((err) =>
-          console.log("Failed to save to recents", err),
+        await saveRecentForm(photoUri, data).catch((err) =>
+          console.warn("Failed to save to recents", err),
         );
       }
     } catch (error) {
@@ -772,6 +770,7 @@ export default function CameraOCRScreen() {
                                 isSelected &&
                                 styles.selectedBoundingBox,
                             ]}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             onPress={() => setSelectedWord(item)}
                           />
                         );
@@ -810,6 +809,7 @@ export default function CameraOCRScreen() {
           wordSentence={selectedWord ? selectedWord.sentence : undefined}
           wordLine={selectedWord ? selectedWord.line : undefined}
           wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
+          formId={detectedFormId}
           onClose={() => setSelectedWord(null)}
         />
       </SafeAreaView>
@@ -842,7 +842,7 @@ export default function CameraOCRScreen() {
         </View>
 
         <View style={styles.headerRightActions}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.autoScanPill}
             onPress={handleAutoScan}
             disabled={isProcessing}
@@ -850,7 +850,7 @@ export default function CameraOCRScreen() {
           >
             <Ionicons name="scan-outline" size={15} color="#FFF" />
             <Text style={styles.autoScanPillText}>Auto</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={[
@@ -929,9 +929,9 @@ export default function CameraOCRScreen() {
           })}
         </View>
 
-        {/* Bottom Bar: Zoom Controls & Manual Shutter Button */}
+        {/* Bottom Bar: Manual Shutter Button (Centered) */}
         <View style={styles.shutterRow}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[
               styles.scannerSwitchButton,
               isProcessing && styles.captureDisabled,
@@ -942,7 +942,7 @@ export default function CameraOCRScreen() {
           >
             <Ionicons name="scan" size={20} color="#2182DE" />
             <Text style={styles.scannerSwitchText}>Auto</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={[
@@ -960,11 +960,11 @@ export default function CameraOCRScreen() {
             )}
           </TouchableOpacity>
 
-          <View style={styles.shutterSpacer} />
+          {/* <View style={styles.shutterSpacer} /> */}
         </View>
 
         <Text style={styles.cameraHintText}>
-          Tap Auto for auto-capture • Or Shutter for manual
+          Tap Shutter to capture document
         </Text>
       </View>
     </SafeAreaView>

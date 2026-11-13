@@ -417,19 +417,17 @@ export default function HomeScreen() {
         const formId = getFormIdFromType(formType);
         const displayTitle = getFormDisplayName(formType);
 
-        // Save to recents in the background with classification title
-        saveRecentForm(
-          uri,
-          data,
-          displayTitle !== "Scanned Document" ? displayTitle : undefined,
-        ).catch((err) => console.log("Failed to save to recents", err));
+        // Save to recents with classification formId
+        await saveRecentForm(uri, data, formId).catch((err) =>
+          console.warn("Failed to save to recents", err),
+        );
 
         setDetectedFormId(formId);
         logEvent({ event: "scan", detail: formId ?? undefined });
       } catch (err) {
         // Fallback
-        saveRecentForm(uri, data).catch((err) =>
-          console.log("Failed to save to recents", err),
+        await saveRecentForm(uri, data).catch((err) =>
+          console.warn("Failed to save to recents", err),
         );
       }
     } catch (e) {
@@ -625,6 +623,7 @@ export default function HomeScreen() {
                                 isSelected &&
                                 styles.selectedBoundingBox,
                             ]}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             onPress={() => setSelectedWord(item)}
                           />
                         );
@@ -663,6 +662,7 @@ export default function HomeScreen() {
           wordSentence={selectedWord ? selectedWord.sentence : undefined}
           wordLine={selectedWord ? selectedWord.line : undefined}
           wordOccurrence={selectedWord ? selectedWord.occurrence : undefined}
+          formId={detectedFormId}
           onClose={() => setSelectedWord(null)}
         />
       </SafeAreaView>

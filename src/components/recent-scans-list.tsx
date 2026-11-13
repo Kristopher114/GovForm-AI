@@ -42,7 +42,7 @@ export default function RecentScansList({ recentForms, onRefresh }: RecentScansL
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.cardDate}>{item.dateStr}</Text>
-        <Text style={styles.wordCount}>{item.words.length} words found</Text>
+        <Text style={styles.wordCount}>{(item.words?.length ?? 0)} words found</Text>
       </View>
 
       <TouchableOpacity

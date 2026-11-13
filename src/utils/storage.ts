@@ -7,6 +7,7 @@ import {
 } from "@/utils/phrase-match";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
+import { getFormDisplayName } from "@/utils/classification";
 export interface BoundingBoxItem {
   id?: string;
   text: string;
@@ -37,49 +38,172 @@ export interface RecentForm {
   formId?: string | null;
 }
 
-const STORAGE_KEY = "@govform_recent_scans";
+// ---------------------------------------------------------------------------
+// Recent scans
+// ---------------------------------------------------------------------------
+// Each scan is saved under its OWN key, plus a small index (list of ids).
+// The old version kept every scan in ONE big list. Each scan stores hundreds of
+// words with their sentences, so after enough scans that single value could grow
+// past what Android can read back in one go (~2 MB per row). Reading then failed,
+// the Recents tab showed nothing, and new saves failed too.
+const LEGACY_STORAGE_KEY = "@govform_recent_scans";
+const INDEX_KEY = "@govform_recent_index_v2";
+const recordKey = (id: string) => `@govform_recent_scan_v2_${id}`;
+const MAX_RECENTS = 50; // oldest scans are removed after this
+const MAX_CONTEXT_CHARS = 400; // keeps one saved scan small
 
+const readIndex = async (): Promise<string[]> => {
+  try {
+    const str = await AsyncStorage.getItem(INDEX_KEY);
+    const parsed = str ? JSON.parse(str) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch (error) {
+    console.error("Error reading recent scans index:", error);
+    return [];
+  }
+};
+
+const writeIndex = (ids: string[]) =>
+  AsyncStorage.setItem(INDEX_KEY, JSON.stringify(ids));
+
+const readRecord = async (id: string): Promise<RecentForm | null> => {
+  try {
+    const str = await AsyncStorage.getItem(recordKey(id));
+    return str ? (JSON.parse(str) as RecentForm) : null;
+  } catch (error) {
+    console.error(`Error reading recent scan ${id}:`, error);
+    return null;
+  }
+};
+
+// Moves scans saved by the old single-list version into the new format (once).
+// The old key is only removed after everything was copied successfully.
+let legacyChecked = false;
+const migrateLegacyRecents = async () => {
+  if (legacyChecked) return;
+  legacyChecked = true;
+  try {
+    const str = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!str) return;
+    const legacy = JSON.parse(str);
+    if (!Array.isArray(legacy)) return;
+
+    const ids = await readIndex();
+    const known = new Set(ids);
+    const toMove = (legacy as RecentForm[]).filter(
+      (f) => f && f.id != null && !known.has(String(f.id)),
+    );
+    for (const form of toMove) {
+      form.id = String(form.id);
+      await AsyncStorage.setItem(recordKey(form.id), JSON.stringify(form));
+    }
+    const merged = [...ids, ...toMove.map((f) => String(f.id))].sort(
+      (a, b) => Number(b) - Number(a),
+    );
+    await writeIndex(merged);
+    await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+    console.log(`Moved ${toMove.length} recent scans to the new storage format.`);
+  } catch (error) {
+    // Usually means the old list is too big to read. It is left untouched.
+    console.warn("Could not read the old recent scans list:", error);
+  }
+};
+
+const trimContext = (text?: string) =>
+  text && text.length > MAX_CONTEXT_CHARS
+    ? text.slice(0, MAX_CONTEXT_CHARS)
+    : text;
+
+// Copies the photo into the app's permanent folder under a unique name, so two
+// scans never share (and overwrite) the same thumbnail file.
+const copyToPermanentStorage = async (originalUri: string): Promise<string> => {
+  const docDir = FileSystem.documentDirectory;
+  if (!docDir) return originalUri;
+  const ext = originalUri.split("?")[0].split(".").pop()?.toLowerCase();
+  const cleanExt =
+    ext && ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+  const target = `${docDir}scan_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 7)}.${cleanExt}`;
+  try {
+    await FileSystem.copyAsync({ from: originalUri, to: target });
+    return target;
+  } catch (copyErr) {
+    // The scan is still saved; only the thumbnail may disappear later.
+    console.warn("Could not copy the scan photo, using the original:", copyErr);
+    return originalUri;
+  }
+};
+
+// formId: the detected form id (e.g. "philhealth-pmrf"), or null/undefined if unknown.
 export const saveRecentForm = async (
   originalUri: string,
   boundingBoxes: BoundingBoxItem[],
   formId?: string | null,
 ) => {
   try {
-    // 1. Copy image to a permanent document directory so it doesn't get cleared by the OS
-    const fileName = originalUri.split("/").pop() || `scan_${Date.now()}.jpg`;
-    const permanentUri = FileSystem.documentDirectory + fileName;
+    await migrateLegacyRecents();
 
-    await FileSystem.copyAsync({
-      from: originalUri,
-      to: permanentUri,
-    });
+    const thumbnailUri = await copyToPermanentStorage(originalUri);
 
-    // 2. Harvest just the words and their context sentences
-    const words: HarvestedWord[] = boundingBoxes.map((box) => ({
+    const words: HarvestedWord[] = (boundingBoxes || []).map((box) => ({
       text: box.text,
-      sentence: box.sentence,
-      line: box.line,
+      sentence: trimContext(box.sentence),
+      line: trimContext(box.line),
       occurrence: box.occurrence,
     }));
 
-    // 3. Create the record
+    const cleanFormId = formId && formId !== "UNKNOWN" ? formId : null;
+
+    let dateLabel = "Today";
+    try {
+      dateLabel = new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      const d = new Date();
+      dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    let dateStr = new Date().toISOString();
+    try {
+      dateStr = new Date().toLocaleString();
+    } catch {}
+
     const newRecord: RecentForm = {
       id: Date.now().toString(),
-      title: `Scanned Document - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
-      dateStr: new Date().toLocaleString(),
-      thumbnailUri: permanentUri,
+      title: cleanFormId
+        ? getFormDisplayName(cleanFormId)
+        : `Scanned Document - ${dateLabel}`,
+      dateStr,
+      thumbnailUri,
       words,
-      formId: formId ?? null,
+      formId: cleanFormId,
     };
 
-    // 4. Save to AsyncStorage
-    const existingStr = await AsyncStorage.getItem(STORAGE_KEY);
-    const existing: RecentForm[] = existingStr ? JSON.parse(existingStr) : [];
+    await AsyncStorage.setItem(
+      recordKey(newRecord.id),
+      JSON.stringify(newRecord),
+    );
 
-    // Add to beginning of array (most recent first)
-    existing.unshift(newRecord);
+    const existingIds = await readIndex();
+    const ids = [newRecord.id, ...existingIds.filter((id) => id !== newRecord.id)];
+    const kept = ids.slice(0, MAX_RECENTS);
+    await writeIndex(kept);
 
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+    // Remove scans that fell off the end of the history.
+    for (const oldId of ids.slice(MAX_RECENTS)) {
+      const old = await readRecord(oldId);
+      await AsyncStorage.removeItem(recordKey(oldId));
+      if (old?.thumbnailUri?.startsWith(FileSystem.documentDirectory ?? "\u0000")) {
+        await FileSystem.deleteAsync(old.thumbnailUri, { idempotent: true });
+      }
+    }
+
+    console.log(`Saved recent scan "${newRecord.title}" (${words.length} words).`);
     return newRecord;
   } catch (error) {
     console.error("Error saving recent form:", error);
@@ -93,12 +217,11 @@ export const updateRecentFormId = async (
   formId: string | null,
 ): Promise<boolean> => {
   try {
-    const str = await AsyncStorage.getItem(STORAGE_KEY);
-    const list: RecentForm[] = str ? JSON.parse(str) : [];
-    const record = list.find((r) => r.id === id);
+    await migrateLegacyRecents();
+    const record = await readRecord(id);
     if (!record) return false;
     record.formId = formId ?? "none";
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    await AsyncStorage.setItem(recordKey(id), JSON.stringify(record));
     return true;
   } catch (error) {
     console.error("Error updating the form of a saved scan:", error);
@@ -108,8 +231,10 @@ export const updateRecentFormId = async (
 
 export const getRecentForms = async (): Promise<RecentForm[]> => {
   try {
-    const dataStr = await AsyncStorage.getItem(STORAGE_KEY);
-    return dataStr ? JSON.parse(dataStr) : [];
+    await migrateLegacyRecents();
+    const ids = await readIndex();
+    const records = await Promise.all(ids.map((id) => readRecord(id)));
+    return records.filter((r): r is RecentForm => r !== null && !!r.id);
   } catch (error) {
     console.error("Error getting recent forms:", error);
     return [];
@@ -119,28 +244,20 @@ export const getRecentForms = async (): Promise<RecentForm[]> => {
 export const getRecentFormById = async (
   id: string,
 ): Promise<RecentForm | null> => {
-  try {
-    const forms = await getRecentForms();
-    return forms.find((f) => f.id === id) || null;
-  } catch (error) {
-    console.error("Error getting recent form by id:", error);
-    return null;
-  }
+  await migrateLegacyRecents();
+  return readRecord(id);
 };
 
 export const deleteRecentForm = async (id: string, thumbnailUri: string) => {
   try {
-    // 1. Remove from AsyncStorage
-    const existingStr = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!existingStr) return;
+    const ids = await readIndex();
+    await writeIndex(ids.filter((existingId) => existingId !== id));
+    await AsyncStorage.removeItem(recordKey(id));
 
-    const existing: RecentForm[] = JSON.parse(existingStr);
-    const filtered = existing.filter((form) => form.id !== id);
-
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-
-    // 2. Delete the physical image file to save storage
-    await FileSystem.deleteAsync(thumbnailUri, { idempotent: true });
+    // Only delete photos the app owns (never the user's gallery original).
+    if (thumbnailUri?.startsWith(FileSystem.documentDirectory ?? "\u0000")) {
+      await FileSystem.deleteAsync(thumbnailUri, { idempotent: true });
+    }
   } catch (error) {
     console.error("Error deleting recent form:", error);
     throw error;
