@@ -19,7 +19,6 @@ import {
 import {
   getOcrSettings,
   OcrMode,
-  saveDesktopIp,
   saveOcrMode
 } from "@/utils/ocr-settings";
 import {
@@ -265,7 +264,27 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>OCR Engine</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitleNoMargin}>OCR Engine</Text>
+            <TouchableOpacity
+              style={styles.tinyRefreshButton}
+              onPress={handleRefreshServerStatus}
+              disabled={isRefreshing}
+              activeOpacity={0.7}
+              accessibilityLabel="Refresh server status"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color="#2182DE" />
+              ) : (
+                <Ionicons
+                  name="refresh-outline"
+                  size={15}
+                  color="#2182DE"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
           <View style={styles.card}>
             <TouchableOpacity
               style={[styles.languageOption, styles.borderBottom]}
@@ -337,6 +356,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Server 1 Endpoint section (commented out for user-friendly UI) */}
+        {/*
         {ocrMode === "desktop" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Server 1 (Optimized) Endpoint</Text>
@@ -380,28 +401,11 @@ export default function SettingsScreen() {
                     {formatServerUrl(desktopIp) || "No URL Synced Yet"}
                   </Text>
                 </View>
-
-                <TouchableOpacity
-                  style={styles.tinyRefreshButton}
-                  onPress={handleRefreshServerStatus}
-                  disabled={isRefreshing}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Refresh server status"
-                >
-                  {isRefreshing ? (
-                    <ActivityIndicator size="small" color="#2182DE" />
-                  ) : (
-                    <Ionicons
-                      name="refresh-outline"
-                      size={18}
-                      color="#2182DE"
-                    />
-                  )}
-                </TouchableOpacity>
               </View>
             </View>
           </View>
         )}
+        */}
 
         {/* Research Mode section (commented out) */}
         {/*
@@ -547,9 +551,9 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   tinyRefreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "rgba(33, 130, 222, 0.08)",
     borderWidth: 1,
     borderColor: "rgba(33, 130, 222, 0.2)",
@@ -559,12 +563,24 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#666",
     marginBottom: 12,
     marginLeft: 8,
+  },
+  sectionTitleNoMargin: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#666",
   },
   card: {
     backgroundColor: "white",
