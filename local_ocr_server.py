@@ -9,12 +9,25 @@ import cv2
 import numpy as np
 
 # Point to Tesseract based on the Operating System
-if os.name == 'nt' and os.path.exists(r"C:\Program Files\Tesseract-OCR\tesseract.exe"):
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+tesseract_candidates = [
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    os.path.expanduser(r"~\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
+]
+if os.name == 'nt':
+    for candidate in tesseract_candidates:
+        if os.path.exists(candidate):
+            pytesseract.pytesseract.tesseract_cmd = candidate
+            break
 
 base_dir = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
-if "TESSDATA_PREFIX" not in os.environ:
+
+# Determine active tessdata directory cleanly, supporting paths with spaces
+tessdata_sys = r"C:\Program Files\Tesseract-OCR\tessdata"
+if os.path.exists(os.path.join(base_dir, "eng.traineddata")) or os.path.exists(os.path.join(base_dir, "myformmodel.traineddata")):
     os.environ["TESSDATA_PREFIX"] = base_dir
+elif os.path.exists(tessdata_sys):
+    os.environ["TESSDATA_PREFIX"] = tessdata_sys
 
 app = FastAPI()
 
@@ -139,7 +152,8 @@ async def predict(file: UploadFile = File(...)):
     print(f"Visual classification result: {form_type}")
     
     # 2. Run Tesseract on preprocessed image with --psm 11
-    tess_config = f'--tessdata-dir {base_dir} --psm 11'
+    # Always wrap base_dir in quotes so paths with spaces (e.g. C:/Users/claire kettles/...) work perfectly
+    tess_config = f'--tessdata-dir "{base_dir}" --psm 11'
     custom_model_file = os.path.join(base_dir, "myformmodel.traineddata")
     has_custom = os.path.exists(custom_model_file)
     
@@ -157,13 +171,23 @@ async def predict(file: UploadFile = File(...)):
             print(f"Custom model OCR error: {e}. Falling back to 'eng'...")
             
     if data is None:
-        data = pytesseract.image_to_data(
-            preprocessed_img,
-            lang='eng',
-            config='--psm 11',
-            output_type=pytesseract.Output.DICT
-        )
-        print("OCR completed with 'eng' model.")
+        try:
+            data = pytesseract.image_to_data(
+                preprocessed_img,
+                lang='eng',
+                config=tess_config,
+                output_type=pytesseract.Output.DICT
+            )
+            print("OCR completed with 'eng' model (project directory).")
+        except Exception as eng_err:
+            print(f"Project directory OCR fallback error ({eng_err}), trying system default...")
+            data = pytesseract.image_to_data(
+                preprocessed_img,
+                lang='eng',
+                config='--psm 11',
+                output_type=pytesseract.Output.DICT
+            )
+            print("OCR completed with 'eng' model (system default).")
     
     boxes = []
     n_boxes = len(data['level'])
