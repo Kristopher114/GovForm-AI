@@ -356,57 +356,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Server 1 Endpoint section (commented out for user-friendly UI) */}
-        {/*
-        {ocrMode === "desktop" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Server 1 (Optimized) Endpoint</Text>
-            <View style={styles.card}>
-              <View style={styles.serverStatusRow}>
-                <View style={styles.serverStatusInfo}>
-                  <View style={styles.serverStatusHeader}>
-                    <Text style={styles.serverStatusLabel}>Active Endpoint</Text>
-                    <View
-                      style={[
-                        styles.statusDotSmall,
-                        serverStatus === "online"
-                          ? styles.statusDotOnline
-                          : serverStatus === "checking"
-                            ? styles.statusDotChecking
-                            : styles.statusDotOffline,
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        serverStatus === "online"
-                          ? styles.statusPillTextOnline
-                          : serverStatus === "checking"
-                            ? styles.statusPillTextChecking
-                            : styles.statusPillTextOffline,
-                      ]}
-                    >
-                      {serverStatus === "online"
-                        ? "Running"
-                        : serverStatus === "checking"
-                          ? "Connecting..."
-                          : "Unreachable"}
-                    </Text>
-                  </View>
-                  <Text
-                    style={styles.serverStatusUrl}
-                    numberOfLines={1}
-                    ellipsizeMode="middle"
-                  >
-                    {formatServerUrl(desktopIp) || "No URL Synced Yet"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-        */}
-
         {/* Research Mode section (commented out) */}
         {/*
         <View style={styles.section}>

@@ -675,6 +675,9 @@ alter table server_config disable row level security;</pre>
     const copySqlBtn = document.getElementById('copySqlBtn');
     const sqlSnippet = document.getElementById('sqlSnippet');
 
+    const DEFAULT_SB_URL = 'https://imsnmwbvofghrbiaqmwr.supabase.co';
+    const DEFAULT_SB_KEY = 'sb_publishable_8P-IHgD2XPu1nW_bj1_jGQ_fS0dHetl';
+
     function showFeedback(text, type = 'info') {
       feedbackMessage.className = `feedback-message show ${type}`;
       feedbackMessage.innerHTML = text.replace(/\n/g, '<br>');
@@ -727,8 +730,8 @@ alter table server_config disable row level security;</pre>
 
     // Supabase Polling & Retrieval
     async function pollSupabase() {
-      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim().replace(/\/+$/, '');
-      const sbKey = (localStorage.getItem('govform_sb_key') || '').trim();
+      const sbUrl = (localStorage.getItem('govform_sb_url') || DEFAULT_SB_URL).trim().replace(/\/+$/, '');
+      const sbKey = (localStorage.getItem('govform_sb_key') || DEFAULT_SB_KEY).trim();
 
       if (!sbUrl || !sbKey) return;
 
@@ -883,7 +886,7 @@ alter table server_config disable row level security;</pre>
       }
 
       const provider = getActiveProvider();
-      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim();
+      const sbUrl = (localStorage.getItem('govform_sb_url') || DEFAULT_SB_URL).trim();
       const fbPid = (localStorage.getItem('govform_fb_project_id') || '').trim();
 
       if (provider === 'supabase' && sbUrl) {
@@ -986,8 +989,8 @@ alter table server_config disable row level security;</pre>
     // Publish to Active Cloud Provider
     publishBtn.addEventListener('click', async () => {
       const provider = getActiveProvider();
-      const sbUrl = (localStorage.getItem('govform_sb_url') || '').trim().replace(/\/+$/, '');
-      const sbKey = (localStorage.getItem('govform_sb_key') || '').trim();
+      const sbUrl = (localStorage.getItem('govform_sb_url') || DEFAULT_SB_URL).trim().replace(/\/+$/, '');
+      const sbKey = (localStorage.getItem('govform_sb_key') || DEFAULT_SB_KEY).trim();
       const fbPid = (localStorage.getItem('govform_fb_project_id') || '').trim();
       const fbKey = (localStorage.getItem('govform_fb_api_key') || '').trim();
 
@@ -1117,8 +1120,8 @@ alter table server_config disable row level security;</pre>
 
     // Modal Events
     openConfigBtn.addEventListener('click', () => {
-      cfgSbUrl.value = localStorage.getItem('govform_sb_url') || '';
-      cfgSbKey.value = localStorage.getItem('govform_sb_key') || '';
+      cfgSbUrl.value = localStorage.getItem('govform_sb_url') || DEFAULT_SB_URL;
+      cfgSbKey.value = localStorage.getItem('govform_sb_key') || DEFAULT_SB_KEY;
       cfgProjectId.value = localStorage.getItem('govform_fb_project_id') || '';
       cfgApiKey.value = localStorage.getItem('govform_fb_api_key') || '';
 
