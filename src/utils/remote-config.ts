@@ -140,7 +140,7 @@ export async function checkPrimaryHostHealth(targetUrl?: string): Promise<Primar
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
+    const timeout = setTimeout(() => controller.abort(), 7000);
 
     const response = await fetch(`${url}/health`, {
       method: "GET",

@@ -544,7 +544,6 @@ To test it on your device:
   - Updated `src/components/form-summary-sheet.tsx` to display a clean, localized "Form Summary" label (`form_summary`) across English, Tagalog, and Bisaya instead of long redundant form titles on the floating pill.
   - Centered camera shutter controls and removed obsolete auto-scan overlay buttons in `src/app/camera.tsx`.
 
-
 ---
 
 ## Update: November 13, 2026 - Thesis Defense Alignment (Knowledge Base v1.1 Remediation, Dialect Tuning & Accessibility UI)
